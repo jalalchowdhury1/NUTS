@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+nuts_cache_local.json
+lambda_package/
+nuts_layer/
+*.zip
+
+# Node
+node_modules/
+dist/
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
