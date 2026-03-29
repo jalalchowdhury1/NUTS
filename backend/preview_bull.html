@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NUTS Visualizer - Bull Market Preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0b0e14;
+            background: linear-gradient(180deg, #0b0e14 0%, #161a22 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .main-signal {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .main-signal h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        .main-signal .ticker {
+            font-family: 'Inter', sans-serif;
+            color: #22c55e;
+            font-weight: 700;
+            margin-left: 10px;
+            text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .indicators-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding: 0 20px;
+        }
+
+        .indicator-item {
+            text-align: center;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding-left: 20px;
+            flex: 1;
+        }
+
+        .indicator-item:first-child {
+            border-left: none;
+            padding-left: 0;
+        }
+
+        .indicator-item .ticker {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.7rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 5px;
+        }
+
+        .indicator-item .value {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .indicator-item .label {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.65rem;
+            color: #475569;
+            margin-top: 2px;
+        }
+
+        .trees-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .tree-card {
+            background: rgba(17, 24, 39, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tree-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .node {
+            background: rgba(31, 41, 55, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .node-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+
+        .node-details {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .node-details .val {
+            font-family: 'Inter', sans-serif;
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .result-badge {
+            font-family: 'Inter', sans-serif;
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .result-badge.false {
+            background: rgba(153, 27, 27, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .result-badge.true {
+            background: rgba(22, 101, 52, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.1);
+        }
+
+        .result-badge.fire {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .close-call {
+            background: rgba(251, 191, 36, 0.05);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .gate-node {
+            background: rgba(34, 197, 94, 0.05);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .gate-title {
+            font-size: 0.85rem;
+            color: #6ee7b7;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gate-content {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .gate-stat {
+            text-align: center;
+        }
+
+        .gate-stat .label {
+            font-size: 0.65rem;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .gate-stat .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .gate-stat .value.success {
+            color: #22c55e;
+        }
+
+        .gate-vs {
+            font-size: 0.8rem;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .gate-result {
+            background: rgba(34, 197, 94, 0.15);
+            color: #d1fae5;
+            text-align: center;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .regime-path {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6ee7b7;
+            margin: 20px 0;
+            padding: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .regime-path span {
+            color: #f1f5f9;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .trees-container {
+                grid-template-columns: 1fr;
+            }
+            .indicators-row {
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="main-signal">
+            <h1>Signal: <span class="ticker" style="color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">UVXY</span></h1>
+        </div>
+
+        <div class="indicators-row">
+            <div class="indicator-item">
+                <div class="ticker">SPY</div>
+                <div class="value">65.27</div>
+                <div class="label">RSI(10)</div>
+            </div>
+            <div class="indicator-item">
+                <div class="ticker">QQQ</div>
+                <div class="value">62.51</div>
+                <div class="label">RSI(10)</div>
+            </div>
+            <div class="indicator-item">
+                <div class="ticker">TQQQ</div>
+                <div class="value">54.20</div>
+                <div class="label">RSI(10)</div>
+            </div>
+            <div class="indicator-item">
+                <div class="ticker">SPXL</div>
+                <div class="value">82.45</div>
+                <div class="label">RSI(10)</div>
+            </div>
+            <div class="indicator-item">
+                <div class="ticker">SQQQ</div>
+                <div class="value">28.33</div>
+                <div class="label">RSI(10)</div>
+            </div>
+            <div class="indicator-item">
+                <div class="ticker">TLT</div>
+                <div class="value">55.48</div>
+                <div class="label">RSI(10)</div>
+            </div>
+        </div>
+
+        <div class="trees-container">
+            <!-- FRONTRUNNERS TREE -->
+            <div class="tree-card">
+                <div class="tree-title">🚀 FRONTRUNNERS</div>
+
+                <div class="node">
+                    <div class="node-label">SPY RSI(10) > 80</div>
+                    <div class="node-details">Value: <span class="val">65.27</span> Threshold: 80</div>
+                    <div class="result-badge false">FALSE</div>
+                </div>
+
+                <div class="node">
+                    <div class="node-label">QQQ RSI(10) > 79</div>
+                    <div class="node-details">Value: <span class="val">62.51</span> Threshold: 79</div>
+                    <div class="result-badge false">FALSE</div>
+                </div>
+
+                <div class="node">
+                    <div class="node-label">VOX RSI(10) > 84</div>
+                    <div class="node-details">Value: <span class="val">71.88</span> Threshold: 84</div>
+                    <div class="result-badge false">FALSE</div>
+                </div>
+
+                <div class="node" style="border-left-color: #64748b; background: rgba(100, 116, 139, 0.05);">
+                    <div class="node-label">No condition fired</div>
+                    <div class="result-badge true" style="background: rgba(100, 116, 139, 0.2); color: #cbd5e1;">
+                        → FTLT
+                    </div>
+                </div>
+            </div>
+            <!-- END FRONTRUNNERS TREE -->
+
+            <!-- FTLT TREE - BULL REGIME -->
+            <div class="tree-card">
+                <div class="tree-title">📈 FTLT (For The Long Term)</div>
+
+                <div class="gate-node">
+                    <div class="gate-title">🔓 GATE: SPY vs 200d MA</div>
+                    <div class="gate-content">
+                        <div class="gate-stat">
+                            <div class="label">SPY Price</div>
+                            <div class="value success">$512.10</div>
+                        </div>
+                        <div class="gate-vs">VS</div>
+                        <div class="gate-stat">
+                            <div class="label">200d MA</div>
+                            <div class="value">$498.30</div>
+                        </div>
+                    </div>
+                    <div class="gate-result">
+                        $512.10 > $498.30 → BULL REGIME
+                    </div>
+                </div>
+
+                <div class="node">
+                    <div class="node-label">B1: TQQQ RSI(10) > 79</div>
+                    <div class="node-details">Value: <span class="val">54.20</span> Threshold: 79</div>
+                    <div class="result-badge false">FALSE</div>
+                </div>
+
+                <div class="node">
+                    <div class="node-label">B2: SPXL RSI(10) > 80</div>
+                    <div class="node-details">Value: <span class="val">82.45</span> Threshold: 80</div>
+                    <div class="result-badge true">TRUE</div>
+                    <div class="close-call">
+                        <span>⚠️</span> Close call. Distance = 2.45
+                    </div>
+                </div>
+
+                <div class="node" style="border-left-color: #ef4444; background: rgba(239, 68, 68, 0.05);">
+                    <div class="node-label">Final Signal</div>
+                    <div class="result-badge fire" style="font-size: 0.9rem;">→ UVXY</div>
+                </div>
+            </div>
+            <!-- END FTLT TREE -->
+        </div>
+        <!-- END TREES CONTAINER -->
+    </div>
+</body>
+
+</html>

@@ -36,6 +36,8 @@ if [[ "${1:-}" == "--create-layer" ]]; then
         yfinance pandas numpy pytz requests \
         -t nuts_layer/python/ \
         --platform manylinux2014_x86_64 \
+        --implementation cp \
+        --python-version 3.10 \
         --only-binary=:all: \
         --upgrade \
         --quiet
