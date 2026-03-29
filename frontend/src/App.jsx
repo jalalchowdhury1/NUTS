@@ -221,7 +221,7 @@ export default function App() {
   const ftltDimmed = frFired && !!data;
 
   // Current tree data for rendering
-  const treeData = tabFR ? data?.frontrunners : tabFTLT ? data?.ftlt : null;
+  const treeData = tabFR ? data?.frontrunners : tabFTLT ? data?.ftlt : tabBS ? data?.blackswan : null;
   const showNotSourceBanner =
     data && ((tabFR && frDimmed) || (tabFTLT && ftltDimmed));
 
@@ -281,10 +281,10 @@ export default function App() {
           {ftltActive && !!data && <span style={{ fontSize: 11, color: "#22c55e" }}>ACTIVE</span>}
         </button>
         <button
-          style={S.tab(tabBS, false, true)}
+          style={S.tab(tabBS, false, false)}
           onClick={() => setActiveTab("blackswan")}
         >
-          🔒 BlackSwan
+          {tabBS ? "●" : "○"} BlackSwan
         </button>
         <button
           style={{
@@ -326,13 +326,7 @@ export default function App() {
 
         {/* Tree area */}
         <div style={S.treeArea}>
-          {tabBS ? (
-            <div style={S.comingSoon}>
-              <div style={{ fontSize: 64 }}>🔒</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>BlackSwan / MeanRev / BondSignal</div>
-              <div style={{ fontSize: 14 }}>Coming Soon — Phase 3</div>
-            </div>
-          ) : treeData ? (
+          {treeData ? (
             <DecisionTree
               branch={activeTab}
               treeData={treeData}

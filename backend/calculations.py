@@ -77,13 +77,24 @@ def rsi_filter(ticker_prices_dict, window):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def cumulative_return(prices, window_days):
-    """Stub — to be implemented in Phase 3."""
-    return None
+    if len(prices) < window_days:
+        return None
+    return (prices[-1] - prices[-window_days]) / prices[-window_days] * 100
 
 
 def max_drawdown(prices, window_days):
-    """Stub — to be implemented in Phase 3."""
-    return None
+    if len(prices) < window_days:
+        return None
+    window = prices[-window_days:]
+    max_dd = 0
+    peak = window[0]
+    for price in window:
+        if price > peak:
+            peak = price
+        dd = (peak - price) / peak * 100
+        if dd > max_dd:
+            max_dd = dd
+    return max_dd
 
 
 # ─────────────────────────────────────────────────────────────────────────────

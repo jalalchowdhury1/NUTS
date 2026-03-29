@@ -22,7 +22,7 @@ ALL_TICKERS = sorted(set([
     "SH", "TMF", "BND", "BIL", "IEF", "URTY", "PSQ",
 ]))
 
-HISTORY_DAYS = 120
+HISTORY_DAYS = 300  # Branch 3 needs RSI(200d) and max_drawdown(180d) — requires ~210 trading days
 MIN_ROWS = 60
 
 
