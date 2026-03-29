@@ -15,7 +15,7 @@ import traceback
 
 from calculations import run_unit_test, calculate_rsi_sma, moving_average_price, current_price
 from data_fetcher import download_all_tickers
-from state_manager import read_state, write_state
+from state_manager import read_state, write_state, _NumpyEncoder
 from trees.frontrunners import evaluate_frontrunners
 from trees.ftlt import evaluate_ftlt
 from trees.blackswan import evaluate_blackswan
@@ -37,7 +37,7 @@ def _response(status: int, body: dict) -> dict:
     return {
         "statusCode": status,
         "headers": CORS_HEADERS,
-        "body": json.dumps(body),
+        "body": json.dumps(body, cls=_NumpyEncoder),
     }
 
 

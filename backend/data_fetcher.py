@@ -8,6 +8,7 @@ Handles multi-level columns, strips NaN, enforces 60-row minimum.
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 
@@ -96,12 +97,15 @@ def download_all_tickers() -> tuple[dict, dict, list]:
     data_quality = {}
     errors = []
 
-    for ticker in ALL_TICKERS:
-        try:
-            prices, meta = download_ticker(ticker)
-            prices_dict[ticker] = prices
-            data_quality[ticker] = meta
-        except Exception as exc:
-            errors.append({"ticker": ticker, "error": str(exc)})
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(download_ticker, ticker): ticker for ticker in ALL_TICKERS}
+        for future in as_completed(futures):
+            ticker = futures[future]
+            try:
+                prices, meta = future.result()
+                prices_dict[ticker] = prices
+                data_quality[ticker] = meta
+            except Exception as exc:
+                errors.append({"ticker": ticker, "error": str(exc)})
 
     return prices_dict, data_quality, errors

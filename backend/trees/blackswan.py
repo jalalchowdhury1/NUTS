@@ -71,7 +71,7 @@ def _node(node_id, label, ticker, indicator, window, operator, threshold,
         "threshold": round(threshold, 4),
         "live_value": round(live_value, 4),
         "distance": round(distance, 4),
-        "result": _eval(live_value, operator, threshold),
+        "result": bool(_eval(live_value, operator, threshold)),
         "active": active,
         "close_call": abs(distance) <= CLOSE_CALL_DISTANCE,
         "outcome": outcome,
@@ -94,7 +94,7 @@ def _ma_node(node_id, label, ticker, window, operator, price_val, ma_val,
         "threshold": round(ma_val, 4),
         "live_value": round(price_val, 4),
         "distance": round(distance, 4),
-        "result": _eval(price_val, operator, ma_val),
+        "result": bool(_eval(price_val, operator, ma_val)),
         "active": active,
         "close_call": abs(distance) <= CLOSE_CALL_DISTANCE,
         "outcome": outcome,
@@ -167,7 +167,7 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
         return v if v is not None else 0.0
 
     # ── GATE: TQQQ RSI(10) > 79 ───────────────────────────────────────────────
-    gate_result   = tqqq_rsi10 > 79
+    gate_result   = bool(tqqq_rsi10 > 79)
     gate_distance = tqqq_rsi10 - 79
     active_set: set[str] = {"gate_tqqq_rsi"}
 

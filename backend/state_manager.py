@@ -13,6 +13,21 @@ import json
 import os
 from datetime import datetime, timezone
 
+import numpy as np
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
 import pytz
 
 CACHE_TTL_MINUTES = 60
@@ -64,7 +79,7 @@ def write_state(result: dict) -> dict:
 
     try:
         with open(_CACHE_PATH, "w") as f:
-            json.dump(result, f)
+            json.dump(result, f, cls=_NumpyEncoder)
     except OSError as exc:
         print(f"[state_manager] Warning: could not write cache to {_CACHE_PATH}: {exc}")
 
