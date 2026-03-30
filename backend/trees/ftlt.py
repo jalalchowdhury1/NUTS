@@ -23,6 +23,7 @@ All nodes (active AND inactive) are included in the response.
 
 import sys
 import os
+from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from calculations import (
@@ -61,7 +62,7 @@ def _eval_op(value: float, operator: str, threshold: float) -> bool:
     raise ValueError(f"Unknown operator: {operator}")
 
 
-def _leaf(node_id: str, outcome: str, active: bool, regime: str | None = None) -> dict:
+def _leaf(node_id: str, outcome: str, active: bool, regime: Optional[str] = None) -> dict:
     node = {
         "id": node_id,
         "label": f"→ {outcome}",
@@ -156,7 +157,7 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
 
     # ── Determine active path ─────────────────────────────────────────────────
     active_set: set[str] = {"gate_spy_200ma"}
-    result: str | None = None
+    result: Optional[str] = None
 
     if gate_result:
         # Bull regime

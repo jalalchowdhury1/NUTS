@@ -12,7 +12,11 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from datetime import datetime
+from typing import Optional
+
 from calculations import calculate_rsi_sma
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Thresholds — single source of truth
@@ -93,7 +97,7 @@ def evaluate_frontrunners(prices_dict: dict) -> dict:
 
     active_path: list[str] = []
     nodes: list[dict] = []
-    result: str | None = None
+    result: Optional[str] = None
     fired: bool = False
 
     for nd in NODE_DEFS:

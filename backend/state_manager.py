@@ -12,6 +12,7 @@ Cache is valid for CACHE_TTL_MINUTES minutes.
 import json
 import os
 from datetime import datetime, timezone
+from typing import Optional
 
 import numpy as np
 
@@ -38,7 +39,7 @@ _IS_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 _CACHE_PATH = "/tmp/nuts_cache.json" if _IS_LAMBDA else "./nuts_cache_local.json"
 
 
-def read_state() -> dict | None:
+def read_state() -> Optional[dict]:
     """
     Read cached evaluation result.
 

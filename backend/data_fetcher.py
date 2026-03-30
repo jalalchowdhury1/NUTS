@@ -8,6 +8,7 @@ Handles multi-level columns, strips NaN, enforces 60-row minimum.
 import numpy as np
 import pandas as pd
 import yfinance as yf
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
@@ -26,6 +27,9 @@ ALL_TICKERS = sorted(set([
 HISTORY_DAYS = 300  # Branch 3 needs RSI(200d) and max_drawdown(180d) — requires ~210 trading days
 MIN_ROWS = 60
 
+# yfinance is not thread-safe for concurrent downloads due to shared internal caches
+DOWNLOAD_LOCK = threading.Lock()
+
 
 def download_ticker(ticker: str) -> tuple[np.ndarray, dict]:
     """
@@ -41,14 +45,15 @@ def download_ticker(ticker: str) -> tuple[np.ndarray, dict]:
     end = datetime.today()
     start = end - timedelta(days=HISTORY_DAYS)
 
-    df = yf.download(
-        ticker,
-        start=start.strftime("%Y-%m-%d"),
-        end=end.strftime("%Y-%m-%d"),
-        auto_adjust=True,
-        progress=False,
-        threads=False,
-    )
+    with DOWNLOAD_LOCK:
+        df = yf.download(
+            ticker,
+            start=start.strftime("%Y-%m-%d"),
+            end=end.strftime("%Y-%m-%d"),
+            auto_adjust=True,
+            progress=False,
+            threads=False,
+        )
 
     if df is None or df.empty:
         raise ValueError(f"No data returned for {ticker}")
