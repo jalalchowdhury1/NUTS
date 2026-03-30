@@ -9,6 +9,8 @@
 
 import React, { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
+import { Tooltip } from "react-tooltip";
+import "react-tooltip/dist/react-tooltip.css";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 const C = {
@@ -27,15 +29,105 @@ const C = {
   leafInactiveBorder: "#21262d",
 };
 
+// ─── Tooltip Logic ────────────────────────────────────────────────────────────
+const ASSET_DESCRIPTIONS = {
+  TQQQ: 'ProShares UltraPro QQQ (TQQQ) — 3× daily Nasdaq-100. Fires in a bull market when tech is not overbought.',
+  VIXY: 'ProShares VIX Short-Term Futures (VIXY) — tracks near-term volatility index futures. Fires when a sector RSI is dangerously high.',
+  UVXY: 'ProShares Ultra VIX Short-Term Futures (UVXY) — 1.5× VIX futures. Fires when TQQQ is overbought (RSI > 79).',
+  SOXL: 'Direxion Daily Semiconductors Bull 3X (SOXL) — 3× daily semiconductor index. Fires when SOXX is deeply oversold, betting on a semis rebound.',
+  TECL: 'Direxion Daily Technology Bull 3X (TECL) — 3× daily tech sector. Fires when QQQ is deeply oversold, betting on a tech rebound.',
+  UPRO: 'ProShares UltraPro S&P 500 (UPRO) — 3× daily S&P 500. Fires when the broad market is deeply oversold, betting on a market-wide rebound.',
+  SQQQ: 'ProShares UltraPro Short QQQ (SQQQ) — 3× inverse Nasdaq-100. Fires as a bearish bet when TQQQ drops below its 20-day moving average.',
+  BIL:  'SPDR Bloomberg 1-3 Month T-Bill (BIL) — cash equivalent, near-zero risk. Parked here when no signal fires — preserves capital while waiting.',
+  TLT:  'iShares 20+ Year Treasury Bond (TLT) — long-duration US government bonds. Competes with SQQQ; whichever has the lower RSI wins (more room to recover).',
+  PSQ:  "ProShares Short QQQ (PSQ) — 1× inverse Nasdaq-100. Mild hedge; fires when VIXY's own RSI is too high to safely hold.",
+  URTY: 'ProShares UltraPro Russell 2000 (URTY) — 3× daily small-cap index. Fires in a specific FTLT bear-regime branch when SH signals a short-term bounce.',
+};
+
+const PLAIN_QUESTIONS = {
+  'SPY_RSI_>':   () => `Is the broad market overbought?`,
+  'SPY_RSI_<':   () => `Is the broad market deeply oversold?`,
+  'QQQ_RSI_>':   () => `Is tech overbought?`,
+  'QQQ_RSI_<':   () => `Is tech deeply oversold?`,
+  'VTV_RSI_>':   () => `Are value stocks overbought?`,
+  'VOX_RSI_>':   () => `Is the comms sector overbought?`,
+  'XLK_RSI_>':   () => `Is the tech sector ETF overbought?`,
+  'XLP_RSI_>':   () => `Are consumer staples overbought?`,
+  'XLF_RSI_>':   () => `Is the financial sector overbought?`,
+  'SOXX_RSI_<':  () => `Are semiconductors deeply oversold?`,
+  'TQQQ_RSI_>':  () => `Is TQQQ overbought?`,
+  'TQQQ_RSI_<':  () => `Is TQQQ deeply oversold?`,
+  'SPXL_RSI_>':  () => `Is SPXL overbought?`,
+  'SQQQ_RSI_<':  () => `Is SQQQ deeply oversold?`,
+  'SPY_MA_>':    (t) => `Is the market above its ${t}-day moving average? (bull regime)`,
+  'SPY_MA_<':    (t) => `Is the market below its ${t}-day moving average? (bear regime)`,
+  'TQQQ_MA_<':   (t) => `Is TQQQ below its ${t}-day moving average?`,
+  'TQQQ_CUM_RET_<': (t) => `Did TQQQ drop more than ${Math.abs(t)}% recently? (crash signal)`,
+  'QQQ_MAX_DD_>':   () => `Is QQQ's recent drawdown severe enough to act?`,
+  'SPY_MA_40_>':    () => `Is the market above its 40-day moving average?`,
+  'QQQ_MA_25_>':    () => `Is QQQ above its 25-day moving average?`,
+};
+
+function buildPlainQuestion(node) {
+  const key = `${node.ticker}_${node.indicator}_${node.operator}`;
+  const fn = PLAIN_QUESTIONS[key];
+  return fn ? fn(node.threshold) : node.label;
+}
+
+function buildConditionTooltip(node) {
+  const question = buildPlainQuestion(node);
+
+  if (node.live_value == null) {
+    return `${question} — no data available`;
+  }
+
+  const isPrice = node.indicator && node.indicator.includes('MA') && !node.indicator.includes('RSI');
+  const pfx = isPrice ? '$' : '';
+  
+  let liveName = `${node.ticker} ${node.indicator}(${node.window})`;
+  if (isPrice) liveName = node.ticker;
+  
+  const live = `${liveName} = ${pfx}${node.live_value?.toFixed(2)}`;
+  
+  const gapAbsNum = node.distance;
+  const gapAbsStr = gapAbsNum != null ? Math.abs(gapAbsNum).toFixed(2) : null;
+  const gapAbs = gapAbsNum != null 
+    ? `${gapAbsNum > 0 ? '+' : gapAbsNum < 0 ? '−' : ''}${pfx}${gapAbsStr}` 
+    : '—';
+    
+  const gapPctNum = node.live_value 
+    ? (node.distance / node.live_value) * 100 
+    : null;
+    
+  const gapPct = gapPctNum != null ? Math.abs(gapPctNum).toFixed(1) : null;
+  const gapPctStr = gapPctNum != null 
+    ? `${gapPctNum > 0 ? '+' : gapPctNum < 0 ? '−' : ''}${gapPct}%` 
+    : null;
+
+  const gapStr = gapPctStr
+    ? `gap: ${gapAbs} / ${gapPctStr}`
+    : `gap: ${gapAbs}`;
+    
+  const warning = node.close_call ? ' ⚠️ Close call' : '';
+
+  return [question, `${live} (need ${node.operator} ${pfx}${node.threshold}, ${gapStr})${warning}`]
+    .filter(Boolean)
+    .join(' — ');
+}
+
 // ─── Leaf node ────────────────────────────────────────────────────────────────
 function LeafNode({ node }) {
   const active = node.active;
   const ticker = node.outcome || "?";
 
   const filterDetails = node.filter_details;
+  const tooltipId = `tooltip-${node.id}`;
 
   return (
     <div
+      data-tooltip-id={tooltipId}
+      data-tooltip-delay-show={200}
+      data-tooltip-delay-hide={150}
       style={{
         width: 160,
         minHeight: 70,
@@ -89,9 +181,13 @@ function CondNode({ node }) {
 
   const textColor = active ? C.activeText : C.inactiveText;
   const accentColor = active ? C.activeAccent : C.inactiveText;
+  const tooltipId = `tooltip-${node.id}`;
 
   return (
     <div
+      data-tooltip-id={tooltipId}
+      data-tooltip-delay-show={200}
+      data-tooltip-delay-hide={150}
       style={{
         width: 200,
         minHeight: 110,
@@ -190,9 +286,56 @@ function CondNode({ node }) {
 
 // ─── NodeBox (exported) ────────────────────────────────────────────────────────
 function NodeBox({ data }) {
-  const { node, isLeaf } = data;
+  const { node, isLeaf, activeChain, tabName, computedAt, onOpenPanel } = data;
   if (!node) return null;
-  return isLeaf ? <LeafNode node={node} /> : <CondNode node={node} />;
+
+  const tooltipId = `tooltip-${node.id}`;
+  const isOutcome = !!node.outcome;
+  const isActive = node.active;
+
+  const tooltipContent = isOutcome
+    ? (ASSET_DESCRIPTIONS[node.outcome] ?? node.outcome)
+    : buildConditionTooltip(node);
+
+  return (
+    <>
+      {isLeaf ? <LeafNode node={node} /> : <CondNode node={node} />}
+      <Tooltip
+        id={tooltipId}
+        place="top"
+        style={{ maxWidth: "420px", fontSize: "12px", background: "#1a1a2e", zIndex: 1000 }}
+      >
+        <span style={{ opacity: isActive ? 1 : 0.55 }}>{tooltipContent}</span>
+        {isActive && (
+          <button
+            style={{
+              display: "inline-block",
+              marginLeft: "8px",
+              background: "none",
+              border: "none",
+              color: "inherit",
+              opacity: 0.3,
+              cursor: "pointer",
+              fontSize: "13px",
+              padding: 0,
+              lineHeight: 1,
+              verticalAlign: "middle"
+            }}
+            onMouseOver={(e) => e.target.style.opacity = 0.75}
+            onMouseOut={(e) => e.target.style.opacity = 0.3}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onOpenPanel) {
+                onOpenPanel({ chain: activeChain, highlightNodeId: node.id, tabName, computedAt });
+              }
+            }}
+          >
+            ⋯
+          </button>
+        )}
+      </Tooltip>
+    </>
+  );
 }
 
 export default memo(NodeBox);
