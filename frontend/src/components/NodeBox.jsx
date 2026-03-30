@@ -290,10 +290,9 @@ function NodeBox({ data }) {
   if (!node) return null;
 
   const tooltipId = `tooltip-${node.id}`;
-  const isOutcome = !!node.outcome;
   const isActive = node.active;
 
-  const tooltipContent = isOutcome
+  const tooltipContent = isLeaf
     ? (ASSET_DESCRIPTIONS[node.outcome] ?? node.outcome)
     : buildConditionTooltip(node);
 
