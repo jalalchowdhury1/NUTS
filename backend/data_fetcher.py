@@ -7,10 +7,16 @@ Loads price history from S3 CSVs via data_manager instead of downloading
 Historical CSVs are populated once by bootstrap_historical.py and kept
 up-to-date by the daily EventBridge cron (action='update_prices') which
 calls data_manager.update_daily() for each ticker.
+
+During market hours (9:30 AM – 4:00 PM ET, Mon–Fri), download_ticker()
+also appends the current intraday snapshot price so that signal
+calculations always reflect today's live price, not yesterday's close.
 """
 
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, time as dtime
+import pytz
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -24,6 +30,34 @@ ALL_TICKERS = [
 ]
 
 MIN_ROWS = 60
+
+_ET = pytz.timezone("America/New_York")
+_MARKET_OPEN  = dtime(9, 30)
+_MARKET_CLOSE = dtime(16, 0)
+
+
+def _market_is_open() -> bool:
+    """Return True if US equity markets are currently open (Mon–Fri, 9:30–16:00 ET)."""
+    now_et = datetime.now(_ET)
+    if now_et.weekday() >= 5:  # Saturday=5, Sunday=6
+        return False
+    return _MARKET_OPEN <= now_et.time() < _MARKET_CLOSE
+
+
+def _fetch_live_price(ticker: str) -> float | None:
+    """
+    Fetch the latest trade price for *ticker* via yfinance 1-minute bar.
+    Returns None on any failure so callers can degrade gracefully.
+    """
+    try:
+        import yfinance as yf
+        data = yf.Ticker(ticker).history(period="1d", interval="1m")
+        if data is None or data.empty:
+            return None
+        return float(data["Close"].iloc[-1])
+    except Exception as exc:
+        print(f"[data_fetcher] live price fetch failed for {ticker}: {exc}")
+        return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +78,14 @@ def download_ticker(ticker: str) -> tuple:
     """
     from data_manager import load_historical
     series = load_historical(ticker)   # raises FileNotFoundError if missing
+
+    # During market hours, append today's live price if not yet in the CSV.
+    today_str = datetime.now(_ET).strftime("%Y-%m-%d")
+    if _market_is_open() and series.index[-1] < today_str:
+        live = _fetch_live_price(ticker)
+        if live is not None:
+            series[today_str] = live
+            print(f"[data_fetcher] {ticker}: appended live intraday price {live:.4f}")
 
     prices = np.array(series.values, dtype=float)
     prices = prices[~np.isnan(prices)]
