@@ -79,16 +79,22 @@ def download_ticker(ticker: str) -> tuple:
     from data_manager import load_historical
     series = load_historical(ticker)   # raises FileNotFoundError if missing
 
-    # During market hours, append today's live price if not yet in the CSV.
-    today_str = datetime.now(_ET).strftime("%Y-%m-%d")
-    if _market_is_open() and series.index[-1] < today_str:
-        live = _fetch_live_price(ticker)
-        if live is not None:
-            series[today_str] = live
-            print(f"[data_fetcher] {ticker}: appended live intraday price {live:.4f}")
-
     prices = np.array(series.values, dtype=float)
     prices = prices[~np.isnan(prices)]
+
+    # During market hours, always inject the live intraday price.
+    if _market_is_open():
+        live = _fetch_live_price(ticker)
+        if live is not None:
+            today_str = datetime.now(_ET).strftime("%Y-%m-%d")
+            if series.index[-1] == today_str:
+                # Bootstrap already wrote today's row — overwrite it with the current price.
+                prices[-1] = live
+                print(f"[data_fetcher] {ticker}: overwrote today's S3 price with live {live:.4f}")
+            else:
+                # Last S3 row is from a previous day — append today's live price.
+                prices = np.append(prices, live)
+                print(f"[data_fetcher] {ticker}: appended live intraday price {live:.4f}")
 
     if len(prices) < MIN_ROWS:
         raise ValueError(
