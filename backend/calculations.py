@@ -77,9 +77,9 @@ def rsi_filter(ticker_prices_dict, window):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def cumulative_return(prices, window_days):
-    if len(prices) < window_days:
+    if len(prices) < window_days + 1:
         return None
-    return (prices[-1] - prices[-window_days]) / prices[-window_days] * 100
+    return (prices[-1] - prices[-(window_days + 1)]) / prices[-(window_days + 1)] * 100
 
 
 def max_drawdown(prices, window_days):
