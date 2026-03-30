@@ -311,6 +311,7 @@ function NodeBox({ data }) {
       <Tooltip
         id={tooltipId}
         place="top"
+        clickable={true}
         style={{ maxWidth: "420px", fontSize: "12px", background: "#1a1a2e", zIndex: 1000 }}
       >
         <span style={{ opacity: isActive ? 1 : 0.55 }}>{tooltipContent}</span>
