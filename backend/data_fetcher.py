@@ -38,48 +38,37 @@ ALL_TICKERS = [
 MIN_ROWS = 60
 
 _ET = pytz.timezone("America/New_York")
-_MARKET_OPEN        = dtime(9, 30)
-_PRICE_INJECT_UNTIL = dtime(20, 0)   # inject live price until 8 PM ET (covers after-hours close confirmation)
+_MARKET_OPEN  = dtime(9, 30)
+_MARKET_CLOSE = dtime(16, 0)
 
 
 def _should_inject_live_price() -> bool:
-    """Return True on weekdays from market open (9:30 ET) through 8 PM ET.
-
-    This covers both intraday prices and the confirmed closing price that
-    yfinance/Finnhub make available shortly after 4 PM ET.
-    """
+    """Return True if US equity markets are currently open (Mon–Fri, 9:30–16:00 ET)."""
     now_et = datetime.now(_ET)
     if now_et.weekday() >= 5:  # Saturday=5, Sunday=6
         return False
-    return _MARKET_OPEN <= now_et.time() < _PRICE_INJECT_UNTIL
+    return _MARKET_OPEN <= now_et.time() < _MARKET_CLOSE
 
 
 def _fetch_live_price(ticker: str) -> Optional[float]:
-    """Fetch live price with 3-layer redundancy: yfinance -> Finnhub -> Polygon"""
-    # 1. Try yfinance
-    try:
-        import yfinance as yf
-        live_data = yf.download(ticker, period="1d", interval="1m", auto_adjust=True, progress=False)
-        if not live_data.empty and "Close" in live_data:
-            val = float(live_data["Close"].iloc[-1])
-            if not np.isnan(val):
-                return val
-    except Exception as e:
-        print(f"[data_fetcher] yfinance failed for {ticker}: {e}")
+    """Fetch live price with 2-layer redundancy: Finnhub -> Polygon.
 
-    # 2. Try Finnhub Fallback
+    yfinance is intentionally skipped here — it is not thread-safe and
+    produces corrupt/shared results when called concurrently from the
+    ThreadPoolExecutor in download_all_tickers.
+    """
+    # 1. Finnhub (thread-safe REST call)
     try:
         url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as response:
             data = json.loads(response.read().decode("utf-8"))
             if data.get("c") is not None and data["c"] > 0:
-                print(f"[data_fetcher] Used Finnhub fallback for {ticker}")
                 return float(data["c"])
     except Exception as e:
         print(f"[data_fetcher] Finnhub failed for {ticker}: {e}")
 
-    # 3. Try Polygon Fallback
+    # 2. Polygon fallback
     try:
         url = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_KEY}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
