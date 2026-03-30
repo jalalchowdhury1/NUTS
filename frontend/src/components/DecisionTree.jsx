@@ -225,10 +225,11 @@ const BS_EDGES_DEF = [
   // Gate
   { src: "gate_tqqq_rsi",         dst: "leaf_uvxy_gate",          label: "YES" },
   { src: "gate_tqqq_rsi",         dst: "bs1_tqqq_cumret_6d",      label: "NO" },
-  { src: "gate_tqqq_rsi",         dst: "nma1_qqq_maxdd",          label: "NO" },
-  { src: "gate_tqqq_rsi",         dst: "nmb1_qqq_maxdd",          label: "NO" },
-  // BS sub-path
+  // BS sub-path (Huge Volatility = YES)
   { src: "bs1_tqqq_cumret_6d",    dst: "bs2_tqqq_cumret_1d",      label: "YES" },
+  // Normal Market (Huge Volatility = NO)
+  { src: "bs1_tqqq_cumret_6d",    dst: "nma1_qqq_maxdd",          label: "NO" },
+  { src: "bs1_tqqq_cumret_6d",    dst: "nmb1_qqq_maxdd",          label: "NO" },
   { src: "bs2_tqqq_cumret_1d",    dst: "leaf_bs_uvxy",            label: "YES" },
   { src: "bs2_tqqq_cumret_1d",    dst: "bs3_tqqq_rsi_low",        label: "NO" },
   { src: "bs3_tqqq_rsi_low",      dst: "leaf_bs_tqqq_b3",         label: "YES" },
