@@ -18,6 +18,7 @@ import urllib.request
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, time as dtime
+from typing import Optional
 import pytz
 
 FINNHUB_KEY = "d75f31pr01qk56kchlsgd75f31pr01qk56kchlt0"
@@ -37,19 +38,23 @@ ALL_TICKERS = [
 MIN_ROWS = 60
 
 _ET = pytz.timezone("America/New_York")
-_MARKET_OPEN  = dtime(9, 30)
-_MARKET_CLOSE = dtime(16, 0)
+_MARKET_OPEN        = dtime(9, 30)
+_PRICE_INJECT_UNTIL = dtime(20, 0)   # inject live price until 8 PM ET (covers after-hours close confirmation)
 
 
-def _market_is_open() -> bool:
-    """Return True if US equity markets are currently open (Mon–Fri, 9:30–16:00 ET)."""
+def _should_inject_live_price() -> bool:
+    """Return True on weekdays from market open (9:30 ET) through 8 PM ET.
+
+    This covers both intraday prices and the confirmed closing price that
+    yfinance/Finnhub make available shortly after 4 PM ET.
+    """
     now_et = datetime.now(_ET)
     if now_et.weekday() >= 5:  # Saturday=5, Sunday=6
         return False
-    return _MARKET_OPEN <= now_et.time() < _MARKET_CLOSE
+    return _MARKET_OPEN <= now_et.time() < _PRICE_INJECT_UNTIL
 
 
-def _fetch_live_price(ticker: str) -> float | None:
+def _fetch_live_price(ticker: str) -> Optional[float]:
     """Fetch live price with 3-layer redundancy: yfinance -> Finnhub -> Polygon"""
     # 1. Try yfinance
     try:
@@ -112,7 +117,7 @@ def download_ticker(ticker: str) -> tuple:
     prices = prices[~np.isnan(prices)]
 
     # During market hours, always inject the live intraday price.
-    if _market_is_open():
+    if _should_inject_live_price():
         live = _fetch_live_price(ticker)
         if live is not None:
             today_str = datetime.now(_ET).strftime("%Y-%m-%d")
