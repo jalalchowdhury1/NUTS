@@ -367,28 +367,6 @@ export default function App() {
 
         {/* Chain Panel */}
         <ChainPanel panelData={panelData} onClose={() => setPanelData(null)} />
-
-        {/* Stealth Google Sheets Link */}
-        <a
-          href="https://docs.google.com/spreadsheets/d/16GayE5Cf6XhdyONR1i1xQmtEiVvC5WjcAORgF_VrdZY/edit"
-          target="_blank"
-          rel="noreferrer"
-          style={{
-            position: 'fixed',
-            bottom: '10px',
-            right: '10px',
-            fontSize: '10px',
-            color: '#1a1a1a',
-            textDecoration: 'none',
-            opacity: '0.1',
-            transition: 'opacity 0.2s ease-in-out',
-            zIndex: 9999
-          }}
-          onMouseEnter={(e) => e.target.style.opacity = '0.8'}
-          onMouseLeave={(e) => e.target.style.opacity = '0.1'}
-        >
-          ◆
-        </a>
       </div>
     </div>
   );
