@@ -31,17 +31,21 @@ const C = {
 
 // ─── Tooltip Logic ────────────────────────────────────────────────────────────
 export const ASSET_DESCRIPTIONS = {
-  TQQQ: 'ProShares UltraPro QQQ (TQQQ) — 3× daily Nasdaq-100. Fires in a bull market when tech is not overbought.',
-  VIXY: 'ProShares VIX Short-Term Futures (VIXY) — tracks near-term volatility index futures. Fires when a sector RSI is dangerously high.',
-  UVXY: 'ProShares Ultra VIX Short-Term Futures (UVXY) — 1.5× VIX futures. Fires when TQQQ is overbought (RSI > 79).',
-  SOXL: 'Direxion Daily Semiconductors Bull 3X (SOXL) — 3× daily semiconductor index. Fires when SOXX is deeply oversold, betting on a semis rebound.',
-  TECL: 'Direxion Daily Technology Bull 3X (TECL) — 3× daily tech sector. Fires when QQQ is deeply oversold, betting on a tech rebound.',
-  UPRO: 'ProShares UltraPro S&P 500 (UPRO) — 3× daily S&P 500. Fires when the broad market is deeply oversold, betting on a market-wide rebound.',
-  SQQQ: 'ProShares UltraPro Short QQQ (SQQQ) — 3× inverse Nasdaq-100. Fires as a bearish bet when TQQQ drops below its 20-day moving average.',
-  BIL:  'SPDR Bloomberg 1-3 Month T-Bill (BIL) — cash equivalent, near-zero risk. Parked here when no signal fires — preserves capital while waiting.',
-  TLT:  'iShares 20+ Year Treasury Bond (TLT) — long-duration US government bonds. Competes with SQQQ; whichever has the lower RSI wins (more room to recover).',
-  PSQ:  "ProShares Short QQQ (PSQ) — 1× inverse Nasdaq-100. Mild hedge; fires when VIXY's own RSI is too high to safely hold.",
-  URTY: 'ProShares UltraPro Russell 2000 (URTY) — 3× daily small-cap index. Fires in a specific FTLT bear-regime branch when SH signals a short-term bounce.',
+  TQQQ: 'TQQQ is a 3x leveraged Nasdaq-100 ETF',
+  QQQ:  'QQQ is the standard, non-leveraged Nasdaq-100 ETF',
+  SH:   'SH is an inverse S&P 500 ETF that goes up when the market drops',
+  BND:  'BND is the Vanguard Total Bond Market ETF',
+  BIL:  'BIL is the 1-3 Month T-Bill ETF/cash',
+  IEF:  'IEF (7-10 Year Treasuries) and TLT (20+ Year Treasuries) are different flavors of US government debt',
+  TLT:  'IEF (7-10 Year Treasuries) and TLT (20+ Year Treasuries) are different flavors of US government debt',
+  VIXY: 'ProShares VIX Short-Term Futures (VIXY) — tracks near-term volatility index futures',
+  UVXY: 'ProShares Ultra VIX Short-Term Futures (UVXY) — 1.5× VIX futures',
+  SOXL: 'Direxion Daily Semiconductors Bull 3X (SOXL) — 3× daily semiconductor index',
+  TECL: 'Direxion Daily Technology Bull 3X (TECL) — 3× daily tech sector',
+  UPRO: 'ProShares UltraPro S&P 500 (UPRO) — 3× daily S&P 500',
+  SQQQ: 'ProShares UltraPro Short QQQ (SQQQ) — 3× daily inverse Nasdaq-100',
+  PSQ:  'ProShares Short QQQ (PSQ) — 1× daily inverse Nasdaq-100',
+  URTY: 'ProShares UltraPro Russell 2000 (URTY) — 3× daily small-cap index',
 };
 
 const PLAIN_QUESTIONS = {
@@ -114,14 +118,15 @@ export function buildConditionDetail(node) {
 export function buildConditionTooltip(node) {
   const question = buildPlainQuestion(node);
   const detail = buildConditionDetail(node);
+  const description = ASSET_DESCRIPTIONS[node.ticker] ? `\n(${ASSET_DESCRIPTIONS[node.ticker]})` : '';
   
   if (detail === "no data available") {
-    return `${question} — ${detail}`;
+    return `${question} — ${detail}${description}`;
   }
 
   const warning = node.close_call ? ' ⚠️ Close call' : '';
 
-  return [question, `${detail}${warning}`]
+  return [question, `${detail}${warning}${description}`]
     .filter(Boolean)
     .join(' — ');
 }
@@ -316,7 +321,7 @@ function NodeBox({ data }) {
         clickable={true}
         style={{ maxWidth: "420px", fontSize: "12px", background: "#1a1a2e", zIndex: 1000 }}
       >
-        <span style={{ opacity: isActive ? 1 : 0.55 }}>{tooltipContent}</span>
+        <span style={{ opacity: isActive ? 1 : 0.55, whiteSpace: "pre-line" }}>{tooltipContent}</span>
         {true && (
           <button
             style={{

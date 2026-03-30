@@ -25,6 +25,7 @@
 }
 .chain-entry-question { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
 .chain-entry-detail   { font-size: 11px; opacity: 0.6; }
+.chain-entry-description { font-size: 11px; opacity: 0.45; font-style: italic; margin-top: 2px; }
 .close-call-entry     { opacity: 0.6; }
 .highlighted-entry    { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 6px; margin: -6px; }
 .chain-divider        { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 16px 0; }

@@ -19,7 +19,8 @@ export default function ChainPanel({ panelData, onClose }) {
       ...chain.conditionNodes.map(n => {
         const flag = n.close_call ? '⚠️ ' : '';
         const icon = n.result ? '✅' : '❌';
-        return `${icon} ${flag}${buildConditionTooltip(n)}`;
+        const desc = ASSET_DESCRIPTIONS[n.ticker] ? `\n(${ASSET_DESCRIPTIONS[n.ticker]})` : '';
+        return `${icon} ${flag}${buildConditionTooltip(n)}${desc}`;
       }),
       '',
       `→ ${chain.outcome} — ${ASSET_DESCRIPTIONS[chain.outcome] ?? chain.outcome}`,
@@ -53,6 +54,9 @@ export default function ChainPanel({ panelData, onClose }) {
                 {buildPlainQuestion(node)}{node.close_call ? ' ⚠️' : (node.result ? ' ✅' : ' ❌')}
               </div>
               <div className="chain-entry-detail">{buildConditionDetail(node)}</div>
+              {ASSET_DESCRIPTIONS[node.ticker] && (
+                <div className="chain-entry-description">({ASSET_DESCRIPTIONS[node.ticker]})</div>
+              )}
             </div>
           ))}
 
