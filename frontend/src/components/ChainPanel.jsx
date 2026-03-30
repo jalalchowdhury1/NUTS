@@ -45,7 +45,8 @@ export default function ChainPanel({ panelData, onClose }) {
                 'chain-entry',
                 node.close_call ? 'close-call-entry' : '',
                 node.id === highlightNodeId ? 'highlighted-entry' : '',
-              ].join(' ')}
+                !node.isActiveInGlobalPath ? 'dimmed-entry' : ''
+              ].join(' ').trim()}
               style={{ animationDelay: `${i * 40}ms` }}
             >
               <div className="chain-entry-question">
@@ -55,15 +56,23 @@ export default function ChainPanel({ panelData, onClose }) {
             </div>
           ))}
 
-          <hr className="chain-divider" />
-
-          <div
-            className={`chain-outcome ${chain.outcomeNodeId === highlightNodeId ? 'highlighted-entry' : ''}`}
-            style={{ animationDelay: `${chain.conditionNodes.length * 40}ms` }}
-          >
-            <strong>→ {chain.outcome}</strong>
-            <p>{ASSET_DESCRIPTIONS[chain.outcome] ?? chain.outcome}</p>
-          </div>
+          {chain.outcome && (
+            <>
+              <hr className="chain-divider" />
+              <div
+                className={[
+                  'chain-outcome',
+                  chain.outcomeNodeId === highlightNodeId ? 'highlighted-entry' : '',
+                  // If the last condition was inactive, the outcome is probably inactive too
+                  (chain.conditionNodes.length > 0 && !chain.conditionNodes[chain.conditionNodes.length - 1].isActiveInGlobalPath) ? 'dimmed-entry' : ''
+                ].join(' ').trim()}
+                style={{ animationDelay: `${chain.conditionNodes.length * 40}ms` }}
+              >
+                <strong>→ {chain.outcome}</strong>
+                <p>{ASSET_DESCRIPTIONS[chain.outcome] ?? chain.outcome}</p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -347,43 +347,90 @@ function makeEdge(src, dst, label, isActive) {
 }
 
 // ─── Active Chain extraction ────────────────────────────────────────────────────
-function getActiveChain(clickedNodeId, treeData, isBlackswan) {
+function getChainForNode(clickedNodeId, treeData, isBlackswan, rfNodes, rfEdges) {
   const { nodes: apiNodes, active_path } = treeData;
-  if (!active_path) return { conditionNodes: [], outcomeNodeId: null, outcome: null };
-
-  const activeSet = new Set(active_path);
+  const activeSet = new Set(active_path || []);
   const nodeById = Object.fromEntries(apiNodes.map(n => [n.id, n]));
   const clickedNode = nodeById[clickedNodeId];
   
-  let targetSubpath = null;
-  if (isBlackswan && clickedNode) {
-    targetSubpath = clickedNode.subpath; // "bs", "nma", "nmb", or "gate"
+  if (!clickedNode) return { conditionNodes: [], outcomeNodeId: null, outcome: null };
+
+  // Build adjacency lists
+  const parentOf = {};
+  const childrenOf = {}; // id -> { YES: id, NO: id }
+  
+  rfEdges.forEach(edge => {
+    parentOf[edge.target] = edge.source;
+    if (!childrenOf[edge.source]) childrenOf[edge.source] = {};
+    const isYes = edge.label && edge.label.startsWith("YES");
+    childrenOf[edge.source][isYes ? "YES" : "NO"] = edge.target;
+  });
+
+  // Trace UP to root
+  const pathUp = [];
+  let curr = clickedNodeId;
+  while (parentOf[curr]) {
+    curr = parentOf[curr];
+    pathUp.push(curr);
   }
+  pathUp.reverse();
+
+  // Trace DOWN to a leaf following node.result if available
+  const pathDown = [];
+  curr = clickedNodeId;
+  while (true) {
+    const n = nodeById[curr];
+    const isLeaf = n?.is_leaf || curr === "fr_default" || !childrenOf[curr];
+    if (isLeaf) break;
+    
+    // decide which child to pick
+    let nextId = null;
+    if (n.result === true && childrenOf[curr]["YES"]) {
+      nextId = childrenOf[curr]["YES"];
+    } else if (n.result === false && childrenOf[curr]["NO"]) {
+      nextId = childrenOf[curr]["NO"];
+    } else {
+      // fallback if result is undefined: default to NO or YES
+      nextId = childrenOf[curr]["NO"] || childrenOf[curr]["YES"];
+    }
+    
+    if (!nextId) break;
+    pathDown.push(nextId);
+    curr = nextId;
+  }
+
+  const fullPathIds = [...pathUp, clickedNodeId, ...pathDown];
   
   const conditionNodes = [];
   let outcomeNodeId = null;
   let outcome = null;
 
-  active_path.forEach(nid => {
+  fullPathIds.forEach(nid => {
     const n = nodeById[nid];
     if (!n) return;
     
-    // Filter by subpath if we are in blackswan and a subpath node was clicked
-    if (targetSubpath) {
-      if (targetSubpath === "gate" && n.subpath !== "gate") return;
-      if (targetSubpath !== "gate" && n.subpath !== targetSubpath && n.subpath !== "gate") return;
-    }
+    // Attach an 'isActiveInGlobalPath' flag for dimming
+    const nodeObj = { ...n, isActiveInGlobalPath: activeSet.has(nid) };
     
-    if (n.is_leaf || n.id === "fr_default") {
+    const isLeaf = n.is_leaf || n.id === "fr_default" || !childrenOf[nid];
+    if (isLeaf) {
       outcomeNodeId = n.id;
       outcome = n.outcome;
+      // if leaf has no outcome property, use standard parsing
+      if (!outcome && n.id.startsWith("leaf_")) {
+        outcome = n.id.replace("leaf_", "").toUpperCase().split("_")[0];
+        // handle some specific names
+        if (n.id.includes("tqqq")) outcome = "TQQQ";
+        if (n.id.includes("uvxy")) outcome = "UVXY";
+      }
+      if (!outcome && n.id === "fr_default") outcome = "FTLT";
     } else {
-      conditionNodes.push(n);
+      conditionNodes.push(nodeObj);
     }
   });
-  
-  // Gate fallback: If NO, the gate node is active but has no leaf of its own. Let's use overall result
-  if (targetSubpath === "gate" && outcome == null) {
+
+  // Gate fallback
+  if (isBlackswan && clickedNode.subpath === "gate" && outcome == null) {
       outcome = treeData.result || treeData.final_result;
   }
 
@@ -403,7 +450,7 @@ export default function DecisionTree({ branch, treeData, tabName, computedAt, on
     // Inject extra panel data into nodes
     const isBs = branch === "blackswan";
     graph.rfNodes = graph.rfNodes.map(rfNode => {
-      const activeChain = getActiveChain(rfNode.id, treeData, isBs);
+      const activeChain = getChainForNode(rfNode.id, treeData, isBs, graph.rfNodes, graph.rfEdges);
       return {
         ...rfNode,
         data: {
