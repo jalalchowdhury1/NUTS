@@ -18,7 +18,6 @@ Public API
 """
 
 import io
-from datetime import datetime, timedelta
 
 import boto3
 import numpy as np
@@ -33,10 +32,7 @@ from botocore.exceptions import ClientError
 S3_BUCKET  = "nuts-algo-data"
 S3_PREFIX  = "historical"
 
-# How many calendar days to look back when fetching the yfinance delta.
-# 5 trading days of overlap guarantees we never miss a day across weekends /
-# holidays regardless of when the cron fires.
-DELTA_DAYS = 5
+FETCH_PERIOD = "5d"  # yfinance period for daily delta fetches
 
 MIN_ROWS   = 60   # minimum acceptable price history for any ticker
 
@@ -126,16 +122,10 @@ def update_daily(ticker: str) -> None:
     series = load_historical(ticker)
     last_known_date = series.index[-1]  # YYYY-MM-DD string
 
-    # Fetch a short window from yfinance (overlap ensures no gaps)
-    end   = datetime.today()
-    start = end - timedelta(days=DELTA_DAYS + 3)  # +3 for weekend buffer
-
+    # Fetch a rolling 5-day window from yfinance.
+    # Using period= avoids the exclusive-end-date bug and guarantees today's close is included.
     ticker_obj = yf.Ticker(ticker)
-    df_new = ticker_obj.history(
-        start=start.strftime("%Y-%m-%d"),
-        end=end.strftime("%Y-%m-%d"),
-        auto_adjust=True,
-    )
+    df_new = ticker_obj.history(period=FETCH_PERIOD, auto_adjust=True)
 
     if df_new is None or df_new.empty:
         print(f"[data_manager] update_daily({ticker}): yfinance returned no data — skipping")
