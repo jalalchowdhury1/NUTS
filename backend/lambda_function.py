@@ -164,11 +164,70 @@ def _build_indicators(prices_dict: dict, window: int) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# EventBridge scheduled-event handlers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def handle_scheduled_compute() -> dict:
+    """
+    Called by the EventBridge 30-minute cron (action='compute').
+
+    Forces a fresh evaluation regardless of cache age and writes the result
+    back to S3.  Returns a lightweight status dict (not an API Gateway response
+    envelope) because EventBridge doesn't use one.
+    """
+    print("[lambda_handler] EventBridge action=compute — forcing fresh evaluation")
+    response = handle_evaluate(force=True)
+    status = "ok" if response["statusCode"] == 200 else "error"
+    print(f"[lambda_handler] Scheduled compute finished — status={status}")
+    return {"status": status, "statusCode": response["statusCode"]}
+
+
+def handle_scheduled_update_prices() -> dict:
+    """
+    Called by the EventBridge daily cron (action='update_prices').
+
+    Imports data_manager at call-time so the module is only loaded when this
+    action is actually invoked (keeps cold-start overhead minimal for the
+    normal API path).
+    """
+    print("[lambda_handler] EventBridge action=update_prices — updating daily prices")
+    try:
+        from data_manager import update_daily
+        from data_fetcher import ALL_TICKERS
+
+        errors = []
+        for ticker in ALL_TICKERS:
+            try:
+                update_daily(ticker)
+            except Exception as exc:
+                errors.append({"ticker": ticker, "error": str(exc)})
+                print(f"[lambda_handler] update_daily({ticker}) failed: {exc}")
+
+        status = "ok" if not errors else "partial"
+        print(f"[lambda_handler] Price update done — status={status}, errors={len(errors)}")
+        return {"status": status, "errors": errors}
+    except Exception as exc:
+        print(f"[lambda_handler] update_prices fatal error: {exc}")
+        return {"status": "error", "error": str(exc)}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Lambda handler
 # ─────────────────────────────────────────────────────────────────────────────
 
 def lambda_handler(event, context):
     print(f"[lambda_handler] event={json.dumps(event)}")
+
+    # ── EventBridge scheduled events ─────────────────────────────────────────
+    # EventBridge delivers a plain dict with an "action" key; it has no
+    # requestContext, httpMethod, or path fields.
+    action = event.get("action")
+    if action == "compute":
+        return handle_scheduled_compute()
+    if action == "update_prices":
+        return handle_scheduled_update_prices()
+
+    # ── API Gateway HTTP API ──────────────────────────────────────────────────
 
     # Handle CORS preflight
     http_method = (
