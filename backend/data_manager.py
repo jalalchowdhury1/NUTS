@@ -153,7 +153,7 @@ def update_daily(ticker: str) -> None:
     )
 
     # Only keep rows that are strictly newer than what we already have
-    new_rows = new_series[new_series.index > last_known_date]
+    new_rows = new_series[new_series.index >= last_known_date]
 
     if new_rows.empty:
         print(f"[data_manager] update_daily({ticker}): already up to date (last={last_known_date})")
