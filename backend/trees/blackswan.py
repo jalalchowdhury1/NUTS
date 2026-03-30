@@ -1,9 +1,10 @@
 """
 NUTS Algo — Branch 3: BlackSwan / MeanRev / BondSignal.
 
-Gate: TQQQ RSI(10) > 79 → UVXY (only gate node active)
-Otherwise: 3 sub-paths (BS, NMA, NMB) evaluated independently.
-  Results combined by majority vote; NMA wins tiebreak.
+Gate 1: TQQQ RSI(10) > 79 → UVXY (gate closes the tree)
+Otherwise: Gate 2: TQQQ 6d cumulative return < -13%
+  YES (Huge Volatility): Only Black Swan logic evaluated
+  NO (Normal Market): Only NMA & NMB vote; NMA wins tiebreak
 fired is always True.
 """
 
@@ -181,10 +182,14 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
         final_result = "UVXY"
 
     else:
-        # ── SUB-PATH 1: BLACK SWAN ────────────────────────────────────────────
-        bs_active = {"bs1_tqqq_cumret_6d"}
+        # ── GATE 2: Check for Huge Volatility (TQQQ 6d return < -13%) ───────────
+        active_set.add("bs1_tqqq_cumret_6d")
+        is_huge_vol = (tqqq_cumret_6 is not None and tqqq_cumret_6 < -13)
 
-        if tqqq_cumret_6 is not None and tqqq_cumret_6 < -13:
+        if is_huge_vol:
+            # ── PATH A: HUGE VOLATILITY (Black Swan Logic Only) ──────────────────
+            bs_active = {"bs1_tqqq_cumret_6d"}
+
             bs_active.add("bs2_tqqq_cumret_1d")
             if tqqq_cumret_1 is not None and tqqq_cumret_1 > 6:
                 bs_result = "UVXY"
@@ -202,61 +207,75 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
                     else:
                         bs_result = "BIL"
                         bs_active.add("leaf_bs_bil")
-        else:
-            # Normal Market: no black swan conditions met → vote TQQQ
-            bs_result = "TQQQ"
-            bs_active.add("leaf_bs_tqqq_normal")
 
-        # ── SUB-PATH 2: NORMAL MARKET A ───────────────────────────────────────
-        nma_active = {"nma1_qqq_maxdd"}
-
-        if qqq_maxdd_10 is not None and qqq_maxdd_10 > 6:
-            nma_result = "BIL"
-            nma_active.add("leaf_nma_bil_1")
+            final_result = bs_result
+            active_set |= bs_active
         else:
-            nma_active.add("nma2_sh_cumret")
-            if sh_cumret_10 is not None and sh_cumret_10 > 5:
-                nma_active.add("nma2a_spy_vs_ma40")
-                if spy_price > spy_ma40:
-                    nma_result = "URTY"
-                    nma_active.add("leaf_nma_urty")
-                else:
-                    # → NMA3
-                    nma_active.add("nma3_ief_vs_tlt_rsi")
-                    if ief_rsi200 < tlt_rsi200:
-                        nma_active.add("nma3a_bnd_vs_spy_rsi")
-                        if bnd_rsi45 > spy_rsi45:
-                            nma_result = "TQQQ"
-                            nma_active.add("leaf_nma_tqqq_3a")
+            # ── PATH B: NORMAL MARKET (NMA & NMB Vote) ─────────────────────────
+            # Evaluate NMA
+            nma_active = {"nma1_qqq_maxdd"}
+
+            if qqq_maxdd_10 is not None and qqq_maxdd_10 > 6:
+                nma_result = "BIL"
+                nma_active.add("leaf_nma_bil_1")
+            else:
+                nma_active.add("nma2_sh_cumret")
+                if sh_cumret_10 is not None and sh_cumret_10 > 5:
+                    nma_active.add("nma2a_spy_vs_ma40")
+                    if spy_price > spy_ma40:
+                        nma_result = "URTY"
+                        nma_active.add("leaf_nma_urty")
+                    else:
+                        # → NMA3
+                        nma_active.add("nma3_ief_vs_tlt_rsi")
+                        if ief_rsi200 < tlt_rsi200:
+                            nma_active.add("nma3a_bnd_vs_spy_rsi")
+                            if bnd_rsi45 > spy_rsi45:
+                                nma_result = "TQQQ"
+                                nma_active.add("leaf_nma_tqqq_3a")
+                            else:
+                                nma_result = "BIL"
+                                nma_active.add("leaf_nma_bil_3a")
                         else:
                             nma_result = "BIL"
-                            nma_active.add("leaf_nma_bil_3a")
-                    else:
-                        nma_result = "BIL"
-                        nma_active.add("leaf_nma_bil_3")
-            else:
-                # → NMA4
-                nma_active.add("nma4_bnd_vs_bil_cumret")
-                bnd_gt_bil = (bnd_cumret_60 is not None and bil_cumret_60 is not None
-                              and bnd_cumret_60 > bil_cumret_60)
-                if bnd_gt_bil:
-                    # → NMA4b
-                    nma_active.add("nma4b_spy_maxdd")
-                    spy_dd_lt = (spy_maxdd_21 is not None and spy_maxdd_180 is not None
-                                 and spy_maxdd_21 < spy_maxdd_180)
-                    if spy_dd_lt:
-                        nma_active.add("nma4c_spy_rsi_high")
-                        if spy_rsi10 > 80:
-                            nma_result = "UVXY"
-                            nma_active.add("leaf_nma_uvxy")
-                        else:
-                            nma_active.add("nma5_vixy_rsi")
-                            if vixy_rsi10 > 84:
-                                nma_result = "PSQ"
-                                nma_active.add("leaf_nma_psq")
+                            nma_active.add("leaf_nma_bil_3")
+                else:
+                    # → NMA4
+                    nma_active.add("nma4_bnd_vs_bil_cumret")
+                    bnd_gt_bil = (bnd_cumret_60 is not None and bil_cumret_60 is not None
+                                  and bnd_cumret_60 > bil_cumret_60)
+                    if bnd_gt_bil:
+                        # → NMA4b
+                        nma_active.add("nma4b_spy_maxdd")
+                        spy_dd_lt = (spy_maxdd_21 is not None and spy_maxdd_180 is not None
+                                     and spy_maxdd_21 < spy_maxdd_180)
+                        if spy_dd_lt:
+                            nma_active.add("nma4c_spy_rsi_high")
+                            if spy_rsi10 > 80:
+                                nma_result = "UVXY"
+                                nma_active.add("leaf_nma_uvxy")
                             else:
-                                nma_result = "TQQQ"
-                                nma_active.add("leaf_nma_tqqq_5")
+                                nma_active.add("nma5_vixy_rsi")
+                                if vixy_rsi10 > 84:
+                                    nma_result = "PSQ"
+                                    nma_active.add("leaf_nma_psq")
+                                else:
+                                    nma_result = "TQQQ"
+                                    nma_active.add("leaf_nma_tqqq_5")
+                        else:
+                            # → NMA6
+                            nma_active.add("nma6_ief_vs_tlt_rsi")
+                            if ief_rsi200 < tlt_rsi200:
+                                nma_active.add("nma6a_bnd_vs_spy_rsi")
+                                if bnd_rsi45 > spy_rsi45:
+                                    nma_result = "TQQQ"
+                                    nma_active.add("leaf_nma_tqqq_6a")
+                                else:
+                                    nma_result = "BIL"
+                                    nma_active.add("leaf_nma_bil_6a")
+                            else:
+                                nma_result = "BIL"
+                                nma_active.add("leaf_nma_bil_6")
                     else:
                         # → NMA6
                         nma_active.add("nma6_ief_vs_tlt_rsi")
@@ -271,72 +290,54 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
                         else:
                             nma_result = "BIL"
                             nma_active.add("leaf_nma_bil_6")
-                else:
-                    # → NMA6
-                    nma_active.add("nma6_ief_vs_tlt_rsi")
-                    if ief_rsi200 < tlt_rsi200:
-                        nma_active.add("nma6a_bnd_vs_spy_rsi")
-                        if bnd_rsi45 > spy_rsi45:
-                            nma_result = "TQQQ"
-                            nma_active.add("leaf_nma_tqqq_6a")
-                        else:
-                            nma_result = "BIL"
-                            nma_active.add("leaf_nma_bil_6a")
-                    else:
-                        nma_result = "BIL"
-                        nma_active.add("leaf_nma_bil_6")
 
-        # ── SUB-PATH 3: NORMAL MARKET B ───────────────────────────────────────
-        nmb_active = {"nmb1_qqq_maxdd"}
+            # Evaluate NMB
+            nmb_active = {"nmb1_qqq_maxdd"}
 
-        if qqq_maxdd_10 is not None and qqq_maxdd_10 > 6:
-            nmb_result = "BIL"
-            nmb_active.add("leaf_nmb_bil_1")
-        else:
-            nmb_active.add("nmb2_tmf_maxdd")
-            if tmf_maxdd_10 is not None and tmf_maxdd_10 > 7:
+            if qqq_maxdd_10 is not None and qqq_maxdd_10 > 6:
                 nmb_result = "BIL"
-                nmb_active.add("leaf_nmb_bil_2")
+                nmb_active.add("leaf_nmb_bil_1")
             else:
-                nmb_active.add("nmb3_qqq_vs_ma25")
-                if qqq_price > qqq_ma25:
-                    nmb_result = "TQQQ"
-                    nmb_active.add("leaf_nmb_tqqq_3")
+                nmb_active.add("nmb2_tmf_maxdd")
+                if tmf_maxdd_10 is not None and tmf_maxdd_10 > 7:
+                    nmb_result = "BIL"
+                    nmb_active.add("leaf_nmb_bil_2")
                 else:
-                    nmb_active.add("nmb4_spy_rsi_60")
-                    if spy_rsi60 > 50:
-                        nmb_active.add("nmb4a_bnd_vs_spy_rsi")
-                        if bnd_rsi45 > spy_rsi45:
-                            nmb_result = "TQQQ"
-                            nmb_active.add("leaf_nmb_tqqq_4a")
-                        else:
-                            nmb_result = "BIL"
-                            nmb_active.add("leaf_nmb_bil_4a")
+                    nmb_active.add("nmb3_qqq_vs_ma25")
+                    if qqq_price > qqq_ma25:
+                        nmb_result = "TQQQ"
+                        nmb_active.add("leaf_nmb_tqqq_3")
                     else:
-                        nmb_active.add("nmb5_ief_vs_tlt_rsi")
-                        if ief_rsi200 < tlt_rsi200:
-                            nmb_active.add("nmb5a_bnd_vs_spy_rsi")
+                        nmb_active.add("nmb4_spy_rsi_60")
+                        if spy_rsi60 > 50:
+                            nmb_active.add("nmb4a_bnd_vs_spy_rsi")
                             if bnd_rsi45 > spy_rsi45:
                                 nmb_result = "TQQQ"
-                                nmb_active.add("leaf_nmb_tqqq_5a")
+                                nmb_active.add("leaf_nmb_tqqq_4a")
                             else:
                                 nmb_result = "BIL"
-                                nmb_active.add("leaf_nmb_bil_5a")
+                                nmb_active.add("leaf_nmb_bil_4a")
                         else:
-                            nmb_result = "BIL"
-                            nmb_active.add("leaf_nmb_bil_5")
+                            nmb_active.add("nmb5_ief_vs_tlt_rsi")
+                            if ief_rsi200 < tlt_rsi200:
+                                nmb_active.add("nmb5a_bnd_vs_spy_rsi")
+                                if bnd_rsi45 > spy_rsi45:
+                                    nmb_result = "TQQQ"
+                                    nmb_active.add("leaf_nmb_tqqq_5a")
+                                else:
+                                    nmb_result = "BIL"
+                                    nmb_active.add("leaf_nmb_bil_5a")
+                            else:
+                                nmb_result = "BIL"
+                                nmb_active.add("leaf_nmb_bil_5")
 
-        # ── Combine sub-path results ───────────────────────────────────────────
-        votes = [v for v in [bs_result, nma_result, nmb_result] if v is not None]
-        if not votes:
-            final_result = nma_result  # all None — fallback (shouldn't happen)
-        else:
-            counts = Counter(votes)
-            max_count = max(counts.values())
-            leaders = [t for t, c in counts.items() if c == max_count]
-            final_result = leaders[0] if len(leaders) == 1 else nma_result
+            # Vote between NMA and NMB (NMA wins tie)
+            if nma_result == nmb_result:
+                final_result = nma_result
+            else:
+                final_result = nma_result
 
-        active_set |= bs_active | nma_active | nmb_active
+            active_set |= nma_active | nmb_active
 
     # ── Build ordered active_path ──────────────────────────────────────────────
     _ordered = [
