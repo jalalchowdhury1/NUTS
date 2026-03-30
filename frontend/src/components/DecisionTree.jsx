@@ -369,7 +369,10 @@ function getActiveChain(clickedNodeId, treeData, isBlackswan) {
     if (!n) return;
     
     // Filter by subpath if we are in blackswan and a subpath node was clicked
-    if (targetSubpath && n.subpath !== targetSubpath) return;
+    if (targetSubpath) {
+      if (targetSubpath === "gate" && n.subpath !== "gate") return;
+      if (targetSubpath !== "gate" && n.subpath !== targetSubpath && n.subpath !== "gate") return;
+    }
     
     if (n.is_leaf || n.id === "fr_default") {
       outcomeNodeId = n.id;
