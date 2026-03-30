@@ -13,7 +13,7 @@ Unit test MUST pass before any live data is processed.
 import json
 import traceback
 
-from calculations import run_unit_test, calculate_rsi_sma, moving_average_price, current_price
+from calculations import run_unit_test, calculate_rsi_sma, moving_average_price, current_price, cumulative_return, max_drawdown
 from data_fetcher import download_all_tickers
 from state_manager import read_state, write_state, _NumpyEncoder
 from trees.frontrunners import evaluate_frontrunners
@@ -131,36 +131,63 @@ def handle_evaluate(force: bool = False) -> dict:
     return _response(200, saved)
 
 
-def _build_indicators(prices_dict: dict, window: int) -> dict:
-    """Build a flat dict of every computed indicator for the sidebar."""
-    ind: dict = {}
+def _build_indicators(prices_dict: dict, window: int) -> list:
+    """Build a comprehensive list of all tickers and their algorithm metrics for the global frontend table."""
+    market_data = []
 
-    rsi_tickers = [
-        "SPY", "QQQ", "VTV", "VOX", "XLK", "XLP", "XLF",
-        "SOXX", "TQQQ", "SPXL", "SQQQ", "TLT",
-    ]
-    for ticker in rsi_tickers:
-        if ticker in prices_dict:
-            rsi_val = calculate_rsi_sma(prices_dict[ticker], window)
-            ind[f"{ticker}_RSI_{window}"] = round(rsi_val, 2)
+    def _safe(func, *args):
+        try:
+            val = func(*args)
+            return round(val, 2) if val is not None else None
+        except Exception:
+            return None
 
-    # SPY vs 200d MA
-    if "SPY" in prices_dict:
-        spy_price = current_price(prices_dict["SPY"])
-        spy_200ma = moving_average_price(prices_dict["SPY"], 200)
-        ind["SPY_price"] = round(spy_price, 2)
-        ind["SPY_vs_200MA"] = spy_price > spy_200ma
-        ind["SPY_200MA_value"] = round(spy_200ma, 2)
-
-    # TQQQ vs 20d MA
-    if "TQQQ" in prices_dict:
-        tqqq_price = current_price(prices_dict["TQQQ"])
-        tqqq_20ma = moving_average_price(prices_dict["TQQQ"], 20)
-        ind["TQQQ_price"] = round(tqqq_price, 2)
-        ind["TQQQ_vs_20MA"] = tqqq_price > tqqq_20ma
-        ind["TQQQ_20MA_value"] = round(tqqq_20ma, 2)
-
-    return ind
+    for ticker, prices in prices_dict.items():
+        if len(prices) == 0:
+            continue
+            
+        current = current_price(prices)
+        rsi_10 = _safe(calculate_rsi_sma, prices, 10)
+            
+        ticker_data = {
+            "ticker": ticker,
+            "price": round(current, 2),
+            "rsi_10": rsi_10,
+            "extras": {}
+        }
+        
+        # ── Attach specific BlackSwan / FTLT / FR indicators ──
+        if ticker == "SPY":
+            ticker_data["extras"]["MA(40)"] = _safe(moving_average_price, prices, 40)
+            ticker_data["extras"]["MA(200)"] = _safe(moving_average_price, prices, 200)
+            ticker_data["extras"]["RSI(45)"] = _safe(calculate_rsi_sma, prices, 45)
+            ticker_data["extras"]["RSI(60)"] = _safe(calculate_rsi_sma, prices, 60)
+            ticker_data["extras"]["MaxDD(21d)"] = f"{_safe(max_drawdown, prices, 21)}%"
+            ticker_data["extras"]["MaxDD(180d)"] = f"{_safe(max_drawdown, prices, 180)}%"
+        elif ticker == "TQQQ":
+            ticker_data["extras"]["MA(20)"] = _safe(moving_average_price, prices, 20)
+            ticker_data["extras"]["CumRet(1d)"] = f"{_safe(cumulative_return, prices, 1)}%"
+            ticker_data["extras"]["CumRet(6d)"] = f"{_safe(cumulative_return, prices, 6)}%"
+        elif ticker == "QQQ":
+            ticker_data["extras"]["MA(25)"] = _safe(moving_average_price, prices, 25)
+            ticker_data["extras"]["MaxDD(10d)"] = f"{_safe(max_drawdown, prices, 10)}%"
+        elif ticker == "TLT":
+            ticker_data["extras"]["RSI(200)"] = _safe(calculate_rsi_sma, prices, 200)
+        elif ticker == "IEF":
+            ticker_data["extras"]["RSI(200)"] = _safe(calculate_rsi_sma, prices, 200)
+        elif ticker == "BND":
+            ticker_data["extras"]["RSI(45)"] = _safe(calculate_rsi_sma, prices, 45)
+            ticker_data["extras"]["CumRet(60d)"] = f"{_safe(cumulative_return, prices, 60)}%"
+        elif ticker == "BIL":
+            ticker_data["extras"]["CumRet(60d)"] = f"{_safe(cumulative_return, prices, 60)}%"
+        elif ticker == "SH":
+            ticker_data["extras"]["CumRet(10d)"] = f"{_safe(cumulative_return, prices, 10)}%"
+        elif ticker == "TMF":
+            ticker_data["extras"]["MaxDD(10d)"] = f"{_safe(max_drawdown, prices, 10)}%"
+            
+        market_data.append(ticker_data)
+        
+    return sorted(market_data, key=lambda x: x["ticker"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────

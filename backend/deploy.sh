@@ -77,6 +77,7 @@ mkdir -p lambda_package/trees
 cp lambda_function.py  lambda_package/
 cp calculations.py     lambda_package/
 cp data_fetcher.py     lambda_package/
+cp data_manager.py     lambda_package/
 cp state_manager.py    lambda_package/
 
 # Copy trees package

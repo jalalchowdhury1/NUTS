@@ -58,9 +58,15 @@ _LOCAL_PATH  = "./nuts_cache_local.json"
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+_s3_client_singleton = None
+
+
 def _s3_client():
-    """Return a boto3 S3 client (lazy, so local tests don't need AWS creds)."""
-    return boto3.client("s3")
+    """Return a cached boto3 S3 client, reused across warm Lambda invocations."""
+    global _s3_client_singleton
+    if _s3_client_singleton is None:
+        _s3_client_singleton = boto3.client("s3")
+    return _s3_client_singleton
 
 
 def _is_fresh(state: dict) -> bool:
