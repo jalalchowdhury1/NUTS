@@ -1,0 +1,32 @@
+.chain-panel-overlay {
+  position: fixed; inset: 0; z-index: 200; background: transparent;
+}
+.chain-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 300px;
+  background: #1a1a2e;
+  border-left: 1px solid rgba(255,255,255,0.08);
+  padding: 20px 16px; overflow-y: auto;
+  animation: slideInRight 0.22s ease-out; z-index: 201;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); } to { transform: translateX(0); }
+}
+.chain-panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.chain-panel-title  { flex: 1; font-size: 12px; font-weight: 600; opacity: 0.7; }
+.chain-panel-copy, .chain-panel-close {
+  background: none; border: none; color: inherit;
+  opacity: 0.4; cursor: pointer; font-size: 11px; padding: 2px 4px;
+}
+.chain-panel-copy:hover, .chain-panel-close:hover { opacity: 0.8; }
+
+.chain-entry { margin-bottom: 14px; animation: slideUpEntry 0.2s ease-out both; }
+@keyframes slideUpEntry {
+  from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; }
+}
+.chain-entry-question { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+.chain-entry-detail   { font-size: 11px; opacity: 0.6; }
+.close-call-entry     { opacity: 0.6; }
+.highlighted-entry    { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 6px; margin: -6px; }
+.chain-divider        { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 16px 0; }
+.chain-outcome        { font-size: 12px; animation: slideUpEntry 0.2s ease-out both; }
+.chain-outcome p      { font-size: 11px; opacity: 0.6; margin-top: 4px; }

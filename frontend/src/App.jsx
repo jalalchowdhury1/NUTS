@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import DecisionTree from "./components/DecisionTree.jsx";
 import IndicatorSidebar from "./components/IndicatorSidebar.jsx";
+import ChainPanel from "./components/ChainPanel.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes
@@ -172,6 +173,7 @@ export default function App() {
   const [apiError, setApiError] = useState(null);
   const [activeTab, setActiveTab] = useState("frontrunners");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [panelData, setPanelData] = useState(null);
   const timerRef = useRef(null);
 
   const fetchData = useCallback(async (force = false) => {
@@ -204,6 +206,9 @@ export default function App() {
     timerRef.current = setInterval(() => fetchData(false), REFRESH_INTERVAL_MS);
     return () => clearInterval(timerRef.current);
   }, [fetchData]);
+
+  // Close panel on tab switch
+  useEffect(() => { setPanelData(null); }, [activeTab]);
 
   const finalResult = data?.final_result;
   const finalSource = data?.final_source;
@@ -331,6 +336,9 @@ export default function App() {
               branch={activeTab}
               treeData={treeData}
               key={activeTab}
+              tabName={activeTab === "frontrunners" ? "Frontrunners" : activeTab === "ftlt" ? "FTLT" : "BlackSwan"}
+              computedAt={data?.evaluated_at}
+              onOpenPanel={setPanelData}
             />
           ) : loading ? null : (
             <div style={S.comingSoon}>
@@ -356,6 +364,9 @@ export default function App() {
             ftlt={data.ftlt}
           />
         )}
+
+        {/* Chain Panel */}
+        <ChainPanel panelData={panelData} onClose={() => setPanelData(null)} />
       </div>
     </div>
   );

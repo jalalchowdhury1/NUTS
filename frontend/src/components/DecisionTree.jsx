@@ -346,15 +346,75 @@ function makeEdge(src, dst, label, isActive) {
   };
 }
 
+// ─── Active Chain extraction ────────────────────────────────────────────────────
+function getActiveChain(clickedNodeId, treeData, isBlackswan) {
+  const { nodes: apiNodes, active_path } = treeData;
+  if (!active_path) return { conditionNodes: [], outcomeNodeId: null, outcome: null };
+
+  const activeSet = new Set(active_path);
+  const nodeById = Object.fromEntries(apiNodes.map(n => [n.id, n]));
+  const clickedNode = nodeById[clickedNodeId];
+  
+  let targetSubpath = null;
+  if (isBlackswan && clickedNode) {
+    targetSubpath = clickedNode.subpath; // "bs", "nma", "nmb", or "gate"
+  }
+  
+  const conditionNodes = [];
+  let outcomeNodeId = null;
+  let outcome = null;
+
+  active_path.forEach(nid => {
+    const n = nodeById[nid];
+    if (!n) return;
+    
+    // Filter by subpath if we are in blackswan and a subpath node was clicked
+    if (targetSubpath && n.subpath !== targetSubpath) return;
+    
+    if (n.is_leaf || n.id === "fr_default") {
+      outcomeNodeId = n.id;
+      outcome = n.outcome;
+    } else {
+      conditionNodes.push(n);
+    }
+  });
+  
+  // Gate fallback: If NO, the gate node is active but has no leaf of its own. Let's use overall result
+  if (targetSubpath === "gate" && outcome == null) {
+      outcome = treeData.result || treeData.final_result;
+  }
+
+  return { conditionNodes, outcomeNodeId, outcome };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function DecisionTree({ branch, treeData }) {
+export default function DecisionTree({ branch, treeData, tabName, computedAt, onOpenPanel }) {
   const { rfNodes: initNodes, rfEdges: initEdges } = useMemo(() => {
     if (!treeData?.nodes) return { rfNodes: [], rfEdges: [] };
-    if (branch === "frontrunners") return buildFrontrunnersGraph(treeData);
-    if (branch === "ftlt") return buildFtltGraph(treeData);
-    if (branch === "blackswan") return buildBlackswanGraph(treeData);
-    return { rfNodes: [], rfEdges: [] };
-  }, [branch, treeData]);
+    
+    let graph = { rfNodes: [], rfEdges: [] };
+    if (branch === "frontrunners") graph = buildFrontrunnersGraph(treeData);
+    else if (branch === "ftlt") graph = buildFtltGraph(treeData);
+    else if (branch === "blackswan") graph = buildBlackswanGraph(treeData);
+    
+    // Inject extra panel data into nodes
+    const isBs = branch === "blackswan";
+    graph.rfNodes = graph.rfNodes.map(rfNode => {
+      const activeChain = getActiveChain(rfNode.id, treeData, isBs);
+      return {
+        ...rfNode,
+        data: {
+          ...rfNode.data,
+          activeChain,
+          tabName,
+          computedAt,
+          onOpenPanel
+        }
+      };
+    });
+    
+    return graph;
+  }, [branch, treeData, tabName, computedAt, onOpenPanel]);
 
   const [nodes, , onNodesChange] = useNodesState(initNodes);
   const [edges, , onEdgesChange] = useEdgesState(initEdges);

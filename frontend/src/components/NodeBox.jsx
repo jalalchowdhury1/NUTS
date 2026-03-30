@@ -30,7 +30,7 @@ const C = {
 };
 
 // ─── Tooltip Logic ────────────────────────────────────────────────────────────
-const ASSET_DESCRIPTIONS = {
+export const ASSET_DESCRIPTIONS = {
   TQQQ: 'ProShares UltraPro QQQ (TQQQ) — 3× daily Nasdaq-100. Fires in a bull market when tech is not overbought.',
   VIXY: 'ProShares VIX Short-Term Futures (VIXY) — tracks near-term volatility index futures. Fires when a sector RSI is dangerously high.',
   UVXY: 'ProShares Ultra VIX Short-Term Futures (UVXY) — 1.5× VIX futures. Fires when TQQQ is overbought (RSI > 79).',
@@ -68,17 +68,15 @@ const PLAIN_QUESTIONS = {
   'QQQ_MA_25_>':    () => `Is QQQ above its 25-day moving average?`,
 };
 
-function buildPlainQuestion(node) {
+export function buildPlainQuestion(node) {
   const key = `${node.ticker}_${node.indicator}_${node.operator}`;
   const fn = PLAIN_QUESTIONS[key];
   return fn ? fn(node.threshold) : node.label;
 }
 
-function buildConditionTooltip(node) {
-  const question = buildPlainQuestion(node);
-
+export function buildConditionDetail(node) {
   if (node.live_value == null) {
-    return `${question} — no data available`;
+    return "no data available";
   }
 
   const isPrice = node.indicator && node.indicator.includes('MA') && !node.indicator.includes('RSI');
@@ -108,9 +106,20 @@ function buildConditionTooltip(node) {
     ? `gap: ${gapAbs} / ${gapPctStr}`
     : `gap: ${gapAbs}`;
     
+  return `${live} (need ${node.operator} ${pfx}${node.threshold}, ${gapStr})`;
+}
+
+export function buildConditionTooltip(node) {
+  const question = buildPlainQuestion(node);
+  const detail = buildConditionDetail(node);
+  
+  if (detail === "no data available") {
+    return `${question} — ${detail}`;
+  }
+
   const warning = node.close_call ? ' ⚠️ Close call' : '';
 
-  return [question, `${live} (need ${node.operator} ${pfx}${node.threshold}, ${gapStr})${warning}`]
+  return [question, `${detail}${warning}`]
     .filter(Boolean)
     .join(' — ');
 }
