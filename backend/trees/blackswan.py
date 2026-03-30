@@ -202,7 +202,10 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
                     else:
                         bs_result = "BIL"
                         bs_active.add("leaf_bs_bil")
-        # else: bs_result stays None (does not vote)
+        else:
+            # Normal Market: no black swan conditions met → vote TQQQ
+            bs_result = "TQQQ"
+            bs_active.add("leaf_bs_tqqq_normal")
 
         # ── SUB-PATH 2: NORMAL MARKET A ───────────────────────────────────────
         nma_active = {"nma1_qqq_maxdd"}
@@ -339,7 +342,7 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
     _ordered = [
         "gate_tqqq_rsi", "leaf_uvxy_gate",
         # BS
-        "bs1_tqqq_cumret_6d",
+        "bs1_tqqq_cumret_6d", "leaf_bs_tqqq_normal",
         "bs2_tqqq_cumret_1d", "leaf_bs_uvxy",
         "bs3_tqqq_rsi_low", "leaf_bs_tqqq_b3",
         "bs4_tmf_maxdd", "leaf_bs_tqqq_b4", "leaf_bs_bil",
@@ -401,6 +404,7 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
         "TQQQ", "CUM_RET", 6, "<", -13, _s(tqqq_cumret_6),
         a("bs1_tqqq_cumret_6d"), subpath="bs",
     ))
+    nodes.append(_leaf("leaf_bs_tqqq_normal", "Normal Market → TQQQ", a("leaf_bs_tqqq_normal"), "bs"))
     nodes.append(_node(
         "bs2_tqqq_cumret_1d", "TQQQ cumulative_return(1d) > 6",
         "TQQQ", "CUM_RET", 1, ">", 6, _s(tqqq_cumret_1),
