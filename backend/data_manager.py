@@ -18,6 +18,8 @@ Public API
 """
 
 import io
+import json
+import urllib.request
 
 import boto3
 import numpy as np
@@ -125,10 +127,30 @@ def update_daily(ticker: str) -> None:
     # Fetch a rolling 5-day window from yfinance.
     # Using period= avoids the exclusive-end-date bug and guarantees today's close is included.
     ticker_obj = yf.Ticker(ticker)
-    df_new = ticker_obj.history(period=FETCH_PERIOD, auto_adjust=True)
+    try:
+        # Primary: yfinance
+        df_new = ticker_obj.history(period=FETCH_PERIOD, auto_adjust=True)
+        if df_new is None or df_new.empty:
+            raise ValueError("yfinance returned empty dataframe")
+    except Exception as e:
+        print(f"[data_manager] yfinance failed for {ticker}, falling back to Stooq: {e}")
+        try:
+            # Fallback: Stooq via pure urllib (no pandas-datareader needed)
+            stooq_url = f"https://stooq.com/q/d/l/?s={ticker}.US&i=d"
+            req = urllib.request.Request(stooq_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as response:
+                csv_data = response.read()
+            df_stooq = pd.read_csv(io.BytesIO(csv_data), index_col="Date", parse_dates=True)
+            df_stooq = df_stooq.sort_index().tail(5)
+            df_new = pd.DataFrame({"Close": df_stooq["Close"]})
+            # Strip timezone to match existing CSV formatting
+            if df_new.index.tz is not None:
+                df_new.index = df_new.index.tz_localize(None)
+        except Exception as stooq_e:
+            raise RuntimeError(f"Both yfinance and Stooq failed for {ticker}. Error: {stooq_e}")
 
     if df_new is None or df_new.empty:
-        print(f"[data_manager] update_daily({ticker}): yfinance returned no data — skipping")
+        print(f"[data_manager] update_daily({ticker}): no data from any source — skipping")
         return
 
     # Normalise

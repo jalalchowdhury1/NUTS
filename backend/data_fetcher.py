@@ -13,10 +13,15 @@ also appends the current intraday snapshot price so that signal
 calculations always reflect today's live price, not yesterday's close.
 """
 
+import json
+import urllib.request
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, time as dtime
 import pytz
+
+FINNHUB_KEY = "d75f31pr01qk56kchlsgd75f31pr01qk56kchlt0"
+POLYGON_KEY = "o0a2QcLRTxSur_kNLaZUUK1GIPjc_Iz3"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -45,19 +50,43 @@ def _market_is_open() -> bool:
 
 
 def _fetch_live_price(ticker: str) -> float | None:
-    """
-    Fetch the latest trade price for *ticker* via yfinance 1-minute bar.
-    Returns None on any failure so callers can degrade gracefully.
-    """
+    """Fetch live price with 3-layer redundancy: yfinance -> Finnhub -> Polygon"""
+    # 1. Try yfinance
     try:
         import yfinance as yf
-        data = yf.Ticker(ticker).history(period="1d", interval="1m")
-        if data is None or data.empty:
-            return None
-        return float(data["Close"].iloc[-1])
-    except Exception as exc:
-        print(f"[data_fetcher] live price fetch failed for {ticker}: {exc}")
-        return None
+        live_data = yf.download(ticker, period="1d", interval="1m", auto_adjust=True, progress=False)
+        if not live_data.empty and "Close" in live_data:
+            val = float(live_data["Close"].iloc[-1])
+            if not np.isnan(val):
+                return val
+    except Exception as e:
+        print(f"[data_fetcher] yfinance failed for {ticker}: {e}")
+
+    # 2. Try Finnhub Fallback
+    try:
+        url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            if data.get("c") is not None and data["c"] > 0:
+                print(f"[data_fetcher] Used Finnhub fallback for {ticker}")
+                return float(data["c"])
+    except Exception as e:
+        print(f"[data_fetcher] Finnhub failed for {ticker}: {e}")
+
+    # 3. Try Polygon Fallback
+    try:
+        url = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_KEY}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            if "results" in data and "p" in data["results"]:
+                print(f"[data_fetcher] Used Polygon fallback for {ticker}")
+                return float(data["results"]["p"])
+    except Exception as e:
+        print(f"[data_fetcher] Polygon failed for {ticker}: {e}")
+
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
