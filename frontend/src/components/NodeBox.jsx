@@ -43,9 +43,19 @@ export const ASSET_DESCRIPTIONS = {
   SOXL: 'Direxion Daily Semiconductors Bull 3X (SOXL) — 3× daily semiconductor index',
   TECL: 'Direxion Daily Technology Bull 3X (TECL) — 3× daily tech sector',
   UPRO: 'ProShares UltraPro S&P 500 (UPRO) — 3× daily S&P 500',
+  SPXL: 'Direxion Daily S&P 500 Bull 3X (SPXL) — 3× daily S&P 500',
+  FNGU: 'MicroSectors FANG+ Index 3X Leveraged ETN (FNGU) — 3× daily FANG+ Index',
   SQQQ: 'ProShares UltraPro Short QQQ (SQQQ) — 3× daily inverse Nasdaq-100',
   PSQ:  'ProShares Short QQQ (PSQ) — 1× daily inverse Nasdaq-100',
   URTY: 'ProShares UltraPro Russell 2000 (URTY) — 3× daily small-cap index',
+  TMF:  'Direxion Daily 20+ Year Treasury Bull 3X (TMF) — 3× daily long-term US government bonds',
+  SPY:  'SPDR S&P 500 ETF (SPY) — tracks the performance of the S&P 500 Index',
+  SOXX: 'iShares Semiconductor ETF (SOXX) — tracks US-listed semiconductor companies',
+  VTV:  'Vanguard Value ETF (VTV) — tracks large-cap US value stocks',
+  VOX:  'Vanguard Communication Services ETF (VOX) — tracks US communications companies',
+  XLK:  'Technology Select Sector SPDR Fund (XLK) — tracks US technology companies',
+  XLP:  'Consumer Staples Select Sector SPDR Fund (XLP) — tracks US consumer staples companies',
+  XLF:  'Financial Select Sector SPDR Fund (XLF) — tracks US financial companies',
 };
 
 const PLAIN_QUESTIONS = {
