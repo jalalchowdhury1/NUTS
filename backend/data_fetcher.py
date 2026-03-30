@@ -46,19 +46,17 @@ def download_ticker(ticker: str) -> tuple[np.ndarray, dict]:
     start = end - timedelta(days=HISTORY_DAYS)
 
     with DOWNLOAD_LOCK:
-        df = yf.download(
-            ticker,
+        ticker_obj = yf.Ticker(ticker)
+        df = ticker_obj.history(
             start=start.strftime("%Y-%m-%d"),
             end=end.strftime("%Y-%m-%d"),
-            auto_adjust=True,
-            progress=False,
-            threads=False,
+            auto_adjust=True
         )
 
     if df is None or df.empty:
         raise ValueError(f"No data returned for {ticker}")
 
-    # Handle multi-level columns (yfinance sometimes returns MultiIndex)
+    # Handle multi-level columns (yfinance sometimes returns MultiIndex in weird cases)
     if isinstance(df.columns, pd.MultiIndex):
         close_series = df["Close"].iloc[:, 0]
     else:
