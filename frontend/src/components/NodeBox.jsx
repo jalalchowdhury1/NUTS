@@ -71,7 +71,9 @@ const PLAIN_QUESTIONS = {
 export function buildPlainQuestion(node) {
   const key = `${node.ticker}_${node.indicator}_${node.operator}`;
   const fn = PLAIN_QUESTIONS[key];
-  return fn ? fn(node.threshold) : node.label;
+  // MA functions need the window (period), not the price threshold
+  const isMa = node.indicator && node.indicator.includes('MA') && !node.indicator.includes('RSI');
+  return fn ? fn(isMa ? node.window : node.threshold) : node.label;
 }
 
 export function buildConditionDetail(node) {
