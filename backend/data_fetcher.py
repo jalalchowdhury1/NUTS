@@ -38,16 +38,20 @@ ALL_TICKERS = [
 MIN_ROWS = 60
 
 _ET = pytz.timezone("America/New_York")
-_MARKET_OPEN  = dtime(9, 30)
-_MARKET_CLOSE = dtime(16, 0)
+_MARKET_OPEN        = dtime(9, 30)
+_PRICE_INJECT_UNTIL = dtime(20, 0)   # inject until 8 PM ET — covers confirmed close before S3 cron updates
 
 
 def _should_inject_live_price() -> bool:
-    """Return True if US equity markets are currently open (Mon–Fri, 9:30–16:00 ET)."""
+    """Return True on weekdays from market open (9:30 ET) through 8 PM ET.
+
+    Finnhub's 'c' field returns the official closing price after 4 PM,
+    so this window ensures EOD prices are always correct before the S3 cron runs.
+    """
     now_et = datetime.now(_ET)
     if now_et.weekday() >= 5:  # Saturday=5, Sunday=6
         return False
-    return _MARKET_OPEN <= now_et.time() < _MARKET_CLOSE
+    return _MARKET_OPEN <= now_et.time() < _PRICE_INJECT_UNTIL
 
 
 def _fetch_live_price(ticker: str) -> Optional[float]:
