@@ -330,11 +330,11 @@ def evaluate_blackswan(prices_dict: dict) -> dict:
                                 nmb_result = "BIL"
                                 nmb_active.add("leaf_nmb_bil_5")
 
-            # Vote between NMA and NMB (NMA wins tie)
+            # Vote: agree → that ticker; disagree → 50/50 split expressed as "X/Y"
             if nma_result == nmb_result:
                 final_result = nma_result
             else:
-                final_result = nma_result
+                final_result = f"{nma_result}/{nmb_result}"
 
             active_set |= nma_active | nmb_active
 
