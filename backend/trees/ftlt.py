@@ -188,7 +188,8 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
                 active_set.add("b5_tqqq_vs_ma20")
                 if tqqq_current < tqqq_ma20:
                     result = filter_winner
-                    # Add the winning leaf as active; the other will be inactive
+                    # b5_rsi_compare: SQQQ RSI > TLT RSI?
+                    active_set.add("b5_rsi_compare")
                     active_set.add(f"leaf_{filter_winner.lower()}_filter")
                 else:
                     active_set.add("b6_sqqq_rsi_low")
@@ -209,7 +210,7 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
         # Bear branch
         "b3_tqqq_rsi_low", "leaf_tecl",
         "b4_spy_rsi_low", "leaf_upro",
-        "b5_tqqq_vs_ma20", "leaf_sqqq_filter", "leaf_tlt_filter",
+        "b5_tqqq_vs_ma20", "b5_rsi_compare", "leaf_sqqq_filter", "leaf_tlt_filter",
         "b6_sqqq_rsi_low", "leaf_sqqq", "leaf_tqqq_bear",
     ]
     active_path = [nid for nid in _all_ids_ordered if nid in active_set]
@@ -290,11 +291,30 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
         "regime": "bear",
     })
 
+    # B5 → RSI compare node: SQQQ RSI(10) > TLT RSI(10)?
+    _sqqq_rsi = filter_rsi_vals["SQQQ"]
+    _tlt_rsi  = filter_rsi_vals["TLT"]
+    _rsi_cmp_result = _sqqq_rsi > _tlt_rsi
+    _rsi_cmp_dist   = _sqqq_rsi - _tlt_rsi
+    nodes.append({
+        "id": "b5_rsi_compare",
+        "label": f"SQQQ RSI({window}) > TLT RSI({window})",
+        "ticker": "SQQQ",
+        "indicator": "RSI",
+        "window": window,
+        "operator": ">",
+        "threshold": round(_tlt_rsi, 2),
+        "live_value": round(_sqqq_rsi, 2),
+        "distance": round(_rsi_cmp_dist, 2),
+        "result": _rsi_cmp_result,
+        "active": "b5_rsi_compare" in active_set,
+        "close_call": abs(_rsi_cmp_dist) <= ccd,
+        "outcome": filter_winner,
+        "is_leaf": False,
+        "regime": "bear",
+    })
+
     # B5 leaves: two candidates — winner is active, loser is dimmed
-    _b5_label = (
-        f"SQQQ {filter_rsi_vals['SQQQ']:.2f} vs "
-        f"TLT {filter_rsi_vals['TLT']:.2f} — {filter_winner} wins (higher RSI)"
-    )
     _b5_filter_details = {
         "SQQQ_RSI": round(filter_rsi_vals["SQQQ"], 2),
         "TLT_RSI": round(filter_rsi_vals["TLT"], 2),
