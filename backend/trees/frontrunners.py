@@ -96,9 +96,10 @@ def evaluate_frontrunners(prices_dict: dict) -> dict:
         rsi_cache[ticker] = calculate_rsi_sma(prices_dict[ticker], window)
 
     active_path: list[str] = []
-    nodes: list[dict] = []
+    cond_nodes: list[dict] = []   # condition nodes only (for leaf generation pass)
     result: Optional[str] = None
     fired: bool = False
+    fired_node_id: Optional[str] = None
 
     for nd in NODE_DEFS:
         ticker = nd["ticker"]
@@ -125,7 +126,7 @@ def evaluate_frontrunners(prices_dict: dict) -> dict:
             "close_call": abs(distance) <= close_call_dist,
             "outcome": nd["outcome"],
         }
-        nodes.append(node)
+        cond_nodes.append(node)
 
         if is_on_active_path:
             active_path.append(nd["id"])
@@ -133,25 +134,31 @@ def evaluate_frontrunners(prices_dict: dict) -> dict:
         if not fired and cond_result:
             result = nd["outcome"]
             fired = True
-            # Leaf node for the outcome
-            leaf_id = f"leaf_{nd['id']}"
-            nodes.append({
-                "id": leaf_id,
-                "label": f"→ {nd['outcome']}",
-                "ticker": None,
-                "indicator": None,
-                "window": None,
-                "operator": None,
-                "threshold": None,
-                "live_value": None,
-                "distance": None,
-                "result": True,
-                "active": True,
-                "close_call": False,
-                "outcome": nd["outcome"],
-                "is_leaf": True,
-            })
-            active_path.append(leaf_id)
+            fired_node_id = nd["id"]
+            active_path.append(f"leaf_{nd['id']}")
+
+    # Build the final nodes list: all condition nodes first, then ALL leaf nodes
+    # (active=True only for the fired leaf, so inactive leaves render dimmed)
+    nodes: list[dict] = list(cond_nodes)
+    for nd in NODE_DEFS:
+        leaf_id = f"leaf_{nd['id']}"
+        is_active_leaf = (leaf_id in active_path)
+        nodes.append({
+            "id": leaf_id,
+            "label": f"→ {nd['outcome']}",
+            "ticker": None,
+            "indicator": None,
+            "window": None,
+            "operator": None,
+            "threshold": None,
+            "live_value": None,
+            "distance": None,
+            "result": is_active_leaf,
+            "active": is_active_leaf,
+            "close_call": False,
+            "outcome": nd["outcome"],
+            "is_leaf": True,
+        })
 
     if not fired:
         # Default: no condition fired → hand off to FTLT
