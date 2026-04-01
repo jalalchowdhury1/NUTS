@@ -61,14 +61,14 @@ def current_price(prices):
 def rsi_filter(ticker_prices_dict, window):
     """
     Given {ticker: prices_array}, compute RSI for each.
-    Returns (winner_ticker, {ticker: rsi_value}) where winner has the LOWEST RSI.
+    Returns (winner_ticker, {ticker: rsi_value}) where winner has the HIGHEST RSI.
 
-    This mirrors Composer's "sort by RSI ascending, select top 1".
+    This mirrors Composer's "sort by RSI descending, select top 1".
     """
     rsi_values = {}
     for ticker, prices in ticker_prices_dict.items():
         rsi_values[ticker] = calculate_rsi_sma(prices, window)
-    winner = min(rsi_values, key=lambda t: rsi_values[t])
+    winner = max(rsi_values, key=lambda t: rsi_values[t])
     return winner, rsi_values
 
 

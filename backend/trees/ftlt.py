@@ -293,7 +293,7 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
     # B5 leaves: two candidates — winner is active, loser is dimmed
     _b5_label = (
         f"SQQQ {filter_rsi_vals['SQQQ']:.2f} vs "
-        f"TLT {filter_rsi_vals['TLT']:.2f} — {filter_winner} wins (lower RSI)"
+        f"TLT {filter_rsi_vals['TLT']:.2f} — {filter_winner} wins (higher RSI)"
     )
     _b5_filter_details = {
         "SQQQ_RSI": round(filter_rsi_vals["SQQQ"], 2),
