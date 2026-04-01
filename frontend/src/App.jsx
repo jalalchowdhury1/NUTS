@@ -212,23 +212,28 @@ export default function App() {
 
   const finalResult = data?.final_result;
   const finalSource = data?.final_source;
+  const bsResult    = data?.blackswan?.result;
 
   // Tab state
-  const frFired = data?.frontrunners?.fired;
+  const frFired    = data?.frontrunners?.fired;
   const ftltActive = !frFired; // FTLT is the active source when FR didn't fire
+  const bsActive   = !frFired; // BlackSwan is always a portfolio component when FR doesn't fire
 
-  const tabFR = activeTab === "frontrunners";
+  const tabFR   = activeTab === "frontrunners";
   const tabFTLT = activeTab === "ftlt";
-  const tabBS = activeTab === "blackswan";
+  const tabBS   = activeTab === "blackswan";
 
-  // Dimmed: the branch that is NOT the source of today's signal
-  const frDimmed = !frFired && !!data;
-  const ftltDimmed = frFired && !!data;
+  // Dimmed: only the branch that is NOT contributing to today's portfolio
+  const frDimmed   = !frFired && !!data;  // FR dimmed when FTLT/BS are active
+  const ftltDimmed = frFired  && !!data;  // FTLT dimmed when FR fired
+  // BlackSwan is NEVER dimmed — it's always part of the portfolio when FR doesn't fire
+
+  // "Not source" banner only for FR tab when FR didn't fire, or FTLT tab when FR fired
+  const showNotSourceBanner =
+    data && ((tabFR && frDimmed) || (tabFTLT && ftltDimmed));
 
   // Current tree data for rendering
   const treeData = tabFR ? data?.frontrunners : tabFTLT ? data?.ftlt : tabBS ? data?.blackswan : null;
-  const showNotSourceBanner =
-    data && ((tabFR && frDimmed) || (tabFTLT && ftltDimmed));
 
   return (
     <div style={S.app}>
@@ -244,10 +249,25 @@ export default function App() {
       <header style={S.header}>
         <div style={S.headerLeft}>
           <span style={S.title}>NUTS Algo</span>
-          {finalResult && (
-            <span style={{ ...S.signal, color: signalColor(finalResult) }}>
-              ⚡ CURRENT SIGNAL: {finalResult}
-            </span>
+          {data && finalResult && (
+            frFired ? (
+              // Frontrunners fired: single signal
+              <span style={{ ...S.signal, color: signalColor(finalResult) }}>
+                ⚡ CURRENT SIGNAL: {finalResult}
+              </span>
+            ) : (
+              // FTLT + BlackSwan: combined portfolio signal
+              <span style={{ ...S.signal, display: "flex", alignItems: "center", gap: 8 }}>
+                ⚡ CURRENT SIGNAL:
+                <span style={{ color: signalColor(finalResult) }}>{finalResult}</span>
+                {bsResult && (
+                  <>
+                    <span style={{ color: "#484f58", fontWeight: 400, fontSize: 16 }}>+</span>
+                    <span style={{ color: signalColor(bsResult) }}>{bsResult}</span>
+                  </>
+                )}
+              </span>
+            )
           )}
           {!finalResult && !loading && (
             <span style={{ color: "#484f58", fontSize: 16 }}>⚡ No signal yet</span>
@@ -289,7 +309,8 @@ export default function App() {
           style={S.tab(tabBS, false, false)}
           onClick={() => setActiveTab("blackswan")}
         >
-          {tabBS ? "●" : "○"} BlackSwan
+          {bsActive && !!data ? "●" : "○"} BlackSwan
+          {bsActive && !!data && <span style={{ fontSize: 11, color: "#22c55e" }}>ACTIVE</span>}
         </button>
         <button
           style={{
