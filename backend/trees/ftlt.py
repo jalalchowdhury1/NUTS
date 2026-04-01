@@ -188,7 +188,8 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
                 active_set.add("b5_tqqq_vs_ma20")
                 if tqqq_current < tqqq_ma20:
                     result = filter_winner
-                    active_set.add("leaf_rsi_filter")
+                    # Add the winning leaf as active; the other will be inactive
+                    active_set.add(f"leaf_{filter_winner.lower()}_filter")
                 else:
                     active_set.add("b6_sqqq_rsi_low")
                     if sqqq_rsi < THRESHOLDS["SQQQ_RSI_LOW_BEAR"]:
@@ -208,7 +209,7 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
         # Bear branch
         "b3_tqqq_rsi_low", "leaf_tecl",
         "b4_spy_rsi_low", "leaf_upro",
-        "b5_tqqq_vs_ma20", "leaf_rsi_filter",
+        "b5_tqqq_vs_ma20", "leaf_sqqq_filter", "leaf_tlt_filter",
         "b6_sqqq_rsi_low", "leaf_sqqq", "leaf_tqqq_bear",
     ]
     active_path = [nid for nid in _all_ids_ordered if nid in active_set]
@@ -289,32 +290,37 @@ def evaluate_ftlt(prices_dict: dict) -> dict:
         "regime": "bear",
     })
 
-    # B5 leaf: rsi_filter result
-    nodes.append({
-        "id": "leaf_rsi_filter",
-        "label": (
-            f"RSI filter: SQQQ {filter_rsi_vals['SQQQ']:.2f} vs "
-            f"TLT {filter_rsi_vals['TLT']:.2f} → {filter_winner} wins (lower)"
-        ),
-        "ticker": None,
-        "indicator": "RSI_FILTER",
-        "window": window,
-        "operator": None,
-        "threshold": None,
-        "live_value": None,
-        "distance": None,
-        "result": True,
-        "active": "leaf_rsi_filter" in active_set,
-        "close_call": False,
-        "outcome": filter_winner,
-        "is_leaf": True,
-        "regime": "bear",
-        "filter_details": {
-            "SQQQ_RSI": round(filter_rsi_vals["SQQQ"], 2),
-            "TLT_RSI": round(filter_rsi_vals["TLT"], 2),
-            "winner": filter_winner,
-        },
-    })
+    # B5 leaves: two candidates — winner is active, loser is dimmed
+    _b5_label = (
+        f"SQQQ {filter_rsi_vals['SQQQ']:.2f} vs "
+        f"TLT {filter_rsi_vals['TLT']:.2f} — {filter_winner} wins (lower RSI)"
+    )
+    _b5_filter_details = {
+        "SQQQ_RSI": round(filter_rsi_vals["SQQQ"], 2),
+        "TLT_RSI": round(filter_rsi_vals["TLT"], 2),
+        "winner": filter_winner,
+    }
+    for _cand in ("SQQQ", "TLT"):
+        _leaf_id = f"leaf_{_cand.lower()}_filter"
+        _is_winner = (_cand == filter_winner)
+        nodes.append({
+            "id": _leaf_id,
+            "label": f"→ {_cand}",
+            "ticker": None,
+            "indicator": "RSI_FILTER",
+            "window": window,
+            "operator": None,
+            "threshold": None,
+            "live_value": None,
+            "distance": None,
+            "result": _is_winner,
+            "active": _leaf_id in active_set,
+            "close_call": False,
+            "outcome": _cand,
+            "is_leaf": True,
+            "regime": "bear",
+            "filter_details": _b5_filter_details,
+        })
 
     nodes.append(_rsi_node(
         "b6_sqqq_rsi_low", "SQQQ", sqqq_rsi, "<",

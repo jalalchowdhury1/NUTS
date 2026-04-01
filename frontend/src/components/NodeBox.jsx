@@ -318,8 +318,12 @@ function NodeBox({ data }) {
   const tooltipId = `tooltip-${node.id}`;
   const isActive = node.active;
 
+  // RSI filter leaves: show comparison detail pulled from either leaf's filter_details
+  const filterDetails = node.filter_details;
   const tooltipContent = isLeaf
-    ? (ASSET_DESCRIPTIONS[node.outcome] ?? node.outcome)
+    ? (filterDetails
+        ? `SQQQ RSI ${filterDetails.SQQQ_RSI} vs TLT RSI ${filterDetails.TLT_RSI} — ${filterDetails.winner} wins (lower RSI)\n${ASSET_DESCRIPTIONS[node.outcome] ?? node.outcome}`
+        : (ASSET_DESCRIPTIONS[node.outcome] ?? node.outcome))
     : buildConditionTooltip(node);
 
   return (

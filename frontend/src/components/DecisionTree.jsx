@@ -146,7 +146,8 @@ const FTLT_EDGES_DEF = [
   { src: "b3_tqqq_rsi_low",  dst: "b4_spy_rsi_low",    label: "NO" },
   { src: "b4_spy_rsi_low",   dst: "leaf_upro",         label: "YES" },
   { src: "b4_spy_rsi_low",   dst: "b5_tqqq_vs_ma20",   label: "NO" },
-  { src: "b5_tqqq_vs_ma20",  dst: "leaf_rsi_filter",   label: "YES" },
+  { src: "b5_tqqq_vs_ma20",  dst: "leaf_sqqq_filter",  label: "YES" },
+  { src: "b5_tqqq_vs_ma20",  dst: "leaf_tlt_filter",   label: "YES" },
   { src: "b5_tqqq_vs_ma20",  dst: "b6_sqqq_rsi_low",   label: "NO" },
   { src: "b6_sqqq_rsi_low",  dst: "leaf_sqqq",         label: "YES" },
   { src: "b6_sqqq_rsi_low",  dst: "leaf_tqqq_bear",    label: "NO" },
@@ -154,7 +155,7 @@ const FTLT_EDGES_DEF = [
 
 const LEAF_IDS = new Set([
   "leaf_uvxy_b1", "leaf_uvxy_b2", "leaf_tqqq_bull",
-  "leaf_tecl", "leaf_upro", "leaf_rsi_filter",
+  "leaf_tecl", "leaf_upro", "leaf_sqqq_filter", "leaf_tlt_filter",
   "leaf_sqqq", "leaf_tqqq_bear",
 ]);
 
@@ -283,7 +284,7 @@ function buildBlackswanGraph(treeData) {
 
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "LR", ranksep: RANK_SEP + 20, nodesep: NODE_SEP + 20 });
+  g.setGraph({ rankdir: "LR", ranksep: RANK_SEP + 20, nodesep: 10 });
 
   apiNodes.forEach((n) => {
     const isLeaf = BS_LEAF_IDS.has(n.id);
