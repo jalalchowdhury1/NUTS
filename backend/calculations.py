@@ -2,24 +2,33 @@
 NUTS Algo — Indicator calculations.
 
 RSI window for ALL NUTS conditions = 10.
-RSI formula uses SMA (Simple Moving Average), NOT EMA.
+RSI formula uses Wilder's Smoothing (industry standard — matches TradingView,
+Barchart, Thinkorswim, etc.).
+
+Wilder's method:
+  1. Seed: SMA of first `window` gains/losses.
+  2. Subsequent: avg = (prev_avg × (window−1) + current) / window
 
 Unit test:
   prices=[100,102,101,103,102,104,105,103,106,107], window=9 → 73.3333
+  (seed-only case: 9 diffs, window=9 → no smoothing iterations → same as SMA seed)
 """
 
 import numpy as np
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RSI (SMA method) — copied verbatim from trading-algorithm repo
+# RSI (Wilder's Smoothing) — industry-standard formula
 # ─────────────────────────────────────────────────────────────────────────────
 
 def calculate_rsi_sma(prices, window):
     """
-    Calculate RSI using Simple Moving Average (SMA).
+    Calculate RSI using Wilder's Smoothing (industry standard).
 
-    NOT EMA. This is the canonical NUTS RSI formula.
+    Seed: SMA of first `window` gains/losses.
+    Subsequent bars: avg = (prev_avg × (window−1) + current) / window
+
+    Matches TradingView, Barchart, Thinkorswim, etc.
 
     Unit test:
       prices=[100,102,101,103,102,104,105,103,106,107]
@@ -27,15 +36,22 @@ def calculate_rsi_sma(prices, window):
     """
     prices = np.array(prices, dtype=float)
     diffs = np.diff(prices)
-    ups = np.where(diffs > 0, diffs, 0)
-    downs = np.where(diffs < 0, np.abs(diffs), 0)
-    avg_up = np.mean(ups[-window:])
-    avg_down = np.mean(downs[-window:])
+    ups = np.where(diffs > 0, diffs, 0.0)
+    downs = np.where(diffs < 0, np.abs(diffs), 0.0)
+
+    # Seed: SMA of first `window` periods
+    avg_up = np.mean(ups[:window])
+    avg_down = np.mean(downs[:window])
+
+    # Wilder's smoothing for all subsequent periods
+    for i in range(window, len(diffs)):
+        avg_up = (avg_up * (window - 1) + ups[i]) / window
+        avg_down = (avg_down * (window - 1) + downs[i]) / window
+
     if avg_down == 0:
         return 100.0
     rs = avg_up / avg_down
-    rsi = 100 - (100 / (1 + rs))
-    return float(rsi)
+    return float(100 - (100 / (1 + rs)))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
