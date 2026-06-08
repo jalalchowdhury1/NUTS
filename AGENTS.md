@@ -220,11 +220,17 @@ The real correctness gate is `run_unit_test()` (RSI = 73.3333), wired into `/eva
   `cache/latest_evaluation.json` (the last `/evaluate` result).
 
 ### ⚠️ LEAKED API KEYS — OWNER ACTION REQUIRED
-`backend/data_fetcher.py` **hardcodes a Finnhub key and a Polygon key** in plaintext
-(`FINNHUB_KEY`, `POLYGON_KEY`, ~lines 24-25). The GitHub repo is **public**, so these are
-exposed and in git history. **Rotate both keys**, then move them to environment variables
-(read via `os.environ`) and remove the literals. Do not commit new keys. Until rotated,
-assume they are compromised.
+`backend/data_fetcher.py` **previously hardcoded** a Finnhub key and a Polygon key in
+plaintext. The literals have been **removed** — the code now reads `FINNHUB_KEY` and
+`POLYGON_KEY` from `os.environ` (a missing key degrades gracefully: the fetch raises and is
+caught). **But the old keys are still in git history of this public repo, so they are
+compromised.** Owner must:
+1. **Rotate both keys** at Finnhub and Polygon (the old ones are burned).
+2. **Set `FINNHUB_KEY` and `POLYGON_KEY` as environment variables on the `nuts-visualizer`
+   Lambda** (and locally for dev) with the rotated values — until you do, live price fetches
+   fail and signals fall back to the last S3 close.
+3. (Optional) Purge the old literals from git history (`git filter-repo`) — rotation already
+   neutralizes them, so this is hygiene, not strictly required.
 
 ---
 
@@ -288,8 +294,10 @@ assume they are compromised.
 
 ## 7. Known issues / open items
 
-- **Rotate the leaked Finnhub + Polygon keys** in `data_fetcher.py` and move them to env
-  vars (see §5). Top priority.
+- **Rotate the leaked Finnhub + Polygon keys** and set `FINNHUB_KEY`/`POLYGON_KEY` env vars
+  on the `nuts-visualizer` Lambda. The literals are already removed from `data_fetcher.py`
+  (now `os.environ.get`), but the old keys remain in git history → compromised. Top priority
+  (see §5).
 - **`test_suite.py` is broken / stale** — fix the `StateManager` import (use `read_state`/
   `write_state`), update the FTLT `>75`→`>79` label expectation, and reconcile the HTML
   tests with the React frontend (or delete them). See §4.
@@ -314,7 +322,7 @@ assume they are compromised.
   `rsi_filter` (highest RSI wins), and the canonical `run_unit_test` (73.3333).
 - `data_fetcher.py` — `ALL_TICKERS` (22), `download_ticker`/`download_all_tickers`
   (parallel S3 load + live intraday inject via Finnhub→Polygon), market-hours window logic.
-  **Contains the leaked API keys.**
+  Reads `FINNHUB_KEY`/`POLYGON_KEY` from env (old hardcoded keys removed; rotate + set env).
 - `data_manager.py` — all S3 historical-CSV I/O: `load_historical`, `update_daily`
   (yfinance→Stooq, idempotent), `get_prices`. Bucket `nuts-algo-data`, prefix `historical`.
 - `state_manager.py` — `read_state`/`write_state` cache (S3 in Lambda, local file in dev),

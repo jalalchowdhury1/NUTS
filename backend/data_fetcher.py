@@ -14,6 +14,7 @@ calculations always reflect today's live price, not yesterday's close.
 """
 
 import json
+import os
 import urllib.request
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,8 +22,11 @@ from datetime import datetime, time as dtime
 from typing import Optional
 import pytz
 
-FINNHUB_KEY = "d75f31pr01qk56kchlsgd75f31pr01qk56kchlt0"
-POLYGON_KEY = "o0a2QcLRTxSur_kNLaZUUK1GIPjc_Iz3"
+# API keys are read from the environment (set FINNHUB_KEY / POLYGON_KEY on the Lambda
+# and locally). The previously hard-coded keys were leaked in git history and must be
+# rotated. A missing key degrades gracefully (the fetch raises and is caught below).
+FINNHUB_KEY = os.environ.get("FINNHUB_KEY", "")
+POLYGON_KEY = os.environ.get("POLYGON_KEY", "")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
