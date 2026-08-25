@@ -298,10 +298,10 @@ compromised.** Owner must:
    from `backend/trees/`. It holds no thresholds and no indicator maths, by design.
 12. **CORS is wide open** (`Access-Control-Allow-Origin: *`) and the API is unauthenticated
     read-only. Fine for a public read-only signal viewer; don't add write endpoints.
-11. **Trees do `sys.path.insert` hacks** at import time so they can `from calculations import`
+13. **Trees do `sys.path.insert` hacks** at import time so they can `from calculations import`
     when run both as a package (Lambda) and standalone (`python trees/blackswan.py`). Keep
     that if you reorganize.
-12. **`backend/preview.html` / `preview_bull.html`** are static design mockups (no live
+14. **`backend/preview.html` / `preview_bull.html`** are static design mockups (no live
     data). `test_suite.py` greps `preview.html` for node labels — another reason its HTML
     tests drift from the real React app.
 
