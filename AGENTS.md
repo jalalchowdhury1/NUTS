@@ -281,7 +281,22 @@ compromised.** Owner must:
    the flowchart. (History shows real bugs from exactly this: `cf5b82c` ghost node,
    `a8e1339` wrong BS edges.) Frontrunners is auto-chained from id order
    (`leaf_<parent_id>` convention + `fr_default`).
-10. **CORS is wide open** (`Access-Control-Allow-Origin: *`) and the API is unauthenticated
+10. **`@xyflow/react` is pinned to an exact `12.11.3`, and `frontend/package-lock.json`
+   is committed. Do not loosen either.** `12.11.4` is broken as published — it imports
+   `handleAttributionWarning` from its own exactly-pinned `@xyflow/system@0.0.80`, which
+   does not export it, so `vite build` dies with a rollup resolution error. There was no
+   lockfile before 2026-08-25, so Vercel re-resolved on every deploy and the frontend
+   silently became unbuildable while the last good deployment stayed live. If you ever
+   bump it, run `rm -rf node_modules && npm ci && npm run build` locally first.
+   (`npm install` may fail with EACCES on `~/.npm/_cacache` — root-owned entries from an
+   old sudo install. Work around it per-run with `npm_config_cache=<a temp dir>`.)
+11. **The frontend header links out to `nuts-radar.vercel.app`** (a read-only companion
+   board: proximity to each threshold, what crossing would do, scheduled catalysts). That
+   repo mirrors the tree **shape** in `assets/tree.js` and self-checks it against this
+   API's own results on every page load. **If you add, rename or remove a node id, or
+   change a tree's branching, that repo's self-check will start failing** — re-derive it
+   from `backend/trees/`. It holds no thresholds and no indicator maths, by design.
+12. **CORS is wide open** (`Access-Control-Allow-Origin: *`) and the API is unauthenticated
     read-only. Fine for a public read-only signal viewer; don't add write endpoints.
 11. **Trees do `sys.path.insert` hacks** at import time so they can `from calculations import`
     when run both as a package (Lambda) and standalone (`python trees/blackswan.py`). Keep

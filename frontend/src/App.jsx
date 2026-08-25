@@ -53,6 +53,13 @@ const S = {
   signal: { fontSize: 22, fontWeight: 800, letterSpacing: "-0.5px" },
   headerRight: { display: "flex", alignItems: "center", gap: 12, flexShrink: 0 },
   lastUpdated: { fontSize: 12, color: "#8b949e" },
+  radarLink: {
+    fontSize: 12,
+    color: "#8b949e",
+    textDecoration: "none",
+    borderBottom: "1px dotted #30363d",
+    whiteSpace: "nowrap",
+  },
   refreshBtn: {
     background: "#21262d",
     color: "#e6edf3",
@@ -274,6 +281,16 @@ export default function App() {
           )}
         </div>
         <div style={S.headerRight}>
+          {/* Read-only companion board: proximity + catalysts. No signal logic. */}
+          <a
+            style={S.radarLink}
+            href="https://nuts-radar.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Catalyst Radar — how close each condition is, and what is scheduled"
+          >
+            Radar ↗
+          </a>
           {data?.evaluated_at && (
             <span style={S.lastUpdated}>
               {data.cache_hit ? "Cached" : "Updated"}: {formatET(data.evaluated_at)}
