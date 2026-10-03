@@ -374,3 +374,8 @@ compromised.** Owner must:
 - `src/components/ChainPanel.jsx` (+ `.css`) — the slide-in "copy this chain" panel.
 - `package.json` — React 18, `@xyflow/react`, `@dagrejs/dagre`, `react-tooltip`, Vite.
 - `vite.config.js`, `vercel.json` — build config (note `define: {"process.env": {}}` shim).
+
+## Freshness
+
+Freshness: fleet — "NUTS (trading signal API)" grades /evaluate, the exact endpoint the page fetches (screen_side).
+Contract: ~/PycharmProjects/FRESHNESS-CONTRACT.md (declared 2 Oct 2026).
