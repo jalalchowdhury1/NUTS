@@ -174,6 +174,24 @@ def update_daily(ticker: str) -> None:
         name=ticker,
     )
 
+    # A split (SOXX 3:1, 5 Nov 2026) re-scales the whole adjusted history, but
+    # this function only appends — the stored pre-split rows then read as a crash
+    # (SOXX RSI(10) 12.7 instead of ~40). If any day we already hold disagrees
+    # with the fresh adjusted close by >2%, reload the full history instead.
+    common = series.index.intersection(new_series.index)
+    if len(common) and (abs(new_series[common] / series[common] - 1) > 0.02).any():
+        df_max = ticker_obj.history(period="max", auto_adjust=True)
+        full = df_max["Close"].dropna()
+        updated = pd.Series(full.values.astype(float),
+                            index=[d.date().isoformat() for d in full.index], name=ticker)
+        if len(updated) < MIN_ROWS or abs(updated.iloc[-1] / new_series.iloc[-1] - 1) > 0.02:
+            raise RuntimeError(f"{ticker}: split detected but full reload looks wrong")
+        _s3_client().put_object(Bucket=S3_BUCKET, Key=_s3_key(ticker),
+                                Body=_series_to_csv_bytes(updated), ContentType="text/csv")
+        print(f"[data_manager] update_daily({ticker}): split/adjustment detected — "
+              f"reloaded full history ({len(updated)} rows)")
+        return
+
     # Only keep rows that are strictly newer than what we already have
     new_rows = new_series[new_series.index >= last_known_date]
 
