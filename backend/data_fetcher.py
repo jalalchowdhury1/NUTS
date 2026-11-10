@@ -91,6 +91,43 @@ def _fetch_live_price(ticker: str) -> Optional[float]:
     return None
 
 
+SPLIT_SUSPECT_MOVE = 0.20   # a one-day move this big triggers a split lookup
+
+
+def _undo_unadjusted_splits(ticker: str, dates: list, prices: np.ndarray) -> np.ndarray:
+    """Rescale stored rows that predate a split the S3 CSV hasn't absorbed yet.
+
+    On a split day the live price is post-split while S3 is pre-split until the
+    nightly update_prices reload — SOXX 3:1 on 5 Nov 2026 read as a 70% crash and
+    fired Frontrunners -> SOXL. A >20% day in the last 10 bars asks Yahoo for the
+    ticker's splits; a split only rescales when the raw jump at its date matches
+    its ratio (so an already-adjusted history, or a real crash, is left alone).
+    `dates` covers the stored rows; a trailing extra price is today's live one.
+    """
+    tail = prices[-11:]
+    if not (np.abs(tail[1:] / tail[:-1] - 1) > SPLIT_SUSPECT_MOVE).any():
+        return prices
+    try:
+        url = (f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+               f"?range=3mo&interval=1d&events=split")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            res = json.loads(response.read().decode("utf-8"))["chart"]["result"][0]
+        splits = (res.get("events") or {}).get("splits") or {}
+    except Exception as e:
+        print(f"[data_fetcher] {ticker}: split lookup failed after a big move: {e}")
+        return prices
+    prices = prices.copy()
+    for s in splits.values():
+        ratio = float(s["numerator"]) / float(s["denominator"])
+        day = datetime.fromtimestamp(s["date"], _ET).strftime("%Y-%m-%d")
+        k = sum(1 for d in dates if d < day)   # first post-split bar (live bar if not stored yet)
+        if 0 < k < len(prices) and abs(prices[k - 1] / prices[k] / ratio - 1) < 0.35:
+            prices[:k] = prices[:k] / ratio
+            print(f"[data_fetcher] {ticker}: undid unadjusted {ratio:g}:1 split on {day}")
+    return prices
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-ticker loader
 # ─────────────────────────────────────────────────────────────────────────────
@@ -126,6 +163,8 @@ def download_ticker(ticker: str) -> tuple:
                 # Last S3 row is from a previous day — append today's live price.
                 prices = np.append(prices, live)
                 print(f"[data_fetcher] {ticker}: appended live intraday price {live:.4f}")
+
+    prices = _undo_unadjusted_splits(ticker, list(series.dropna().index), prices)
 
     if len(prices) < MIN_ROWS:
         raise ValueError(

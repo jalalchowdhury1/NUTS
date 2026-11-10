@@ -132,6 +132,7 @@ def update_daily(ticker: str) -> None:
         df_new = ticker_obj.history(period=FETCH_PERIOD, auto_adjust=True)
         if df_new is None or df_new.empty:
             raise ValueError("yfinance returned empty dataframe")
+        from_yf = True
     except Exception as e:
         print(f"[data_manager] yfinance failed for {ticker}, falling back to Stooq: {e}")
         try:
@@ -143,6 +144,7 @@ def update_daily(ticker: str) -> None:
             df_stooq = pd.read_csv(io.BytesIO(csv_data), index_col="Date", parse_dates=True)
             df_stooq = df_stooq.sort_index().tail(5)
             df_new = pd.DataFrame({"Close": df_stooq["Close"]})
+            from_yf = False  # different adjustment basis: never compare it to the stored rows
             # Strip timezone to match existing CSV formatting
             if df_new.index.tz is not None:
                 df_new.index = df_new.index.tz_localize(None)
@@ -177,9 +179,11 @@ def update_daily(ticker: str) -> None:
     # A split (SOXX 3:1, 5 Nov 2026) re-scales the whole adjusted history, but
     # this function only appends — the stored pre-split rows then read as a crash
     # (SOXX RSI(10) 12.7 instead of ~40). If any day we already hold disagrees
-    # with the fresh adjusted close by >2%, reload the full history instead.
+    # with the fresh adjusted close by >0.2%, reload the full history instead.
+    # 0.2% also catches a dividend gone ex since the last reload (BIL ~0.35%/mo),
+    # a revised close, or a reverse split — every way stored rows drift from Yahoo.
     common = series.index.intersection(new_series.index)
-    if len(common) and (abs(new_series[common] / series[common] - 1) > 0.02).any():
+    if from_yf and len(common) and (abs(new_series[common] / series[common] - 1) > 0.002).any():
         df_max = ticker_obj.history(period="max", auto_adjust=True)
         full = df_max["Close"].dropna()
         updated = pd.Series(full.values.astype(float),
