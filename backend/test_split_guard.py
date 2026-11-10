@@ -33,4 +33,8 @@ dm.load_historical = lambda t: st; dm.update_daily("BIL")
 n = len(pd.read_csv(io.BytesIO(puts["historical/BIL_prices.csv"]))); check("BIL drift -> full reload (rows>1000)", float(n > 1000), 1.0)
 puts.clear(); dm.load_historical = lambda t: bs[bs.index < bs.index[-2]]; dm.update_daily("BIL")
 n = len(pd.read_csv(io.BytesIO(puts["historical/BIL_prices.csv"]))); check("BIL exact -> append only", float(n == len(bs)), 1.0)
+# 6. dividend missed WEEKS ago (BIL ex 1 Oct, found 10 Nov): rows before it unadjusted -> reload
+puts.clear(); old = bs[bs.index < bs.index[-2]].copy(); old[old.index < "2026-10-01"] *= 1.0029
+dm.load_historical = lambda t: old; dm.update_daily("BIL")
+n = len(pd.read_csv(io.BytesIO(puts["historical/BIL_prices.csv"]))); check("BIL old dividend -> full reload", float(n > 1000), 1.0)
 sys.exit(0 if ok else 1)

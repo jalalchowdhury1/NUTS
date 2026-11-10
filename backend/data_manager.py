@@ -34,7 +34,7 @@ from botocore.exceptions import ClientError
 S3_BUCKET  = "nuts-algo-data"
 S3_PREFIX  = "historical"
 
-FETCH_PERIOD = "5d"  # yfinance period for daily delta fetches
+FETCH_PERIOD = "3mo"  # daily fetch; 3 months of overlap so a dividend missed weeks ago still shows (BIL, 10 Nov 2026)
 
 MIN_ROWS   = 60   # minimum acceptable price history for any ticker
 

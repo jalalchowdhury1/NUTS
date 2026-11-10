@@ -307,7 +307,7 @@ compromised.** Owner must:
 15. **Splits/dividends must never leave the S3 history on two price bases** (10 Nov 2026:
     SOXX 3:1 on 5 Nov was appended onto unsplit rows → RSI(10) 12.74 vs real 39.70 →
     false Frontrunners → SOXL). Three guards, keep all three:
-    `update_daily` reloads `period="max"` when any overlapping day is >0.2% off Yahoo
+    `update_daily` reloads `period="max"` when any of the last 3 months of days is >0.2% off Yahoo
     (splits, dividends, revised closes; Stooq rows are never compared);
     `data_fetcher._undo_unadjusted_splits` rescales on the split day itself (>20% move
     → Yahoo split lookup, rescales only if the raw jump matches the ratio);
