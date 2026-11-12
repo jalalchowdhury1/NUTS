@@ -12,6 +12,7 @@ Unit test MUST pass before any live data is processed.
 
 import json
 import traceback
+from datetime import datetime, timezone
 
 from calculations import run_unit_test, calculate_rsi_sma, moving_average_price, current_price, cumulative_return, max_drawdown
 from data_fetcher import download_all_tickers
@@ -194,6 +195,11 @@ def _build_indicators(prices_dict: dict, window: int) -> list:
 # EventBridge scheduled-event handlers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _morning_slot(now) -> bool:
+    """True only for the 13:05 UTC compute, the first of the day (nuts-compute cron)."""
+    return now.hour == 13 and now.minute < 30
+
+
 def handle_scheduled_compute() -> dict:
     """
     Called by the EventBridge 30-minute cron (action='compute').
@@ -203,6 +209,12 @@ def handle_scheduled_compute() -> dict:
     envelope) because EventBridge doesn't use one.
     """
     print("[lambda_handler] EventBridge action=compute — forcing fresh evaluation")
+    # Morning catch-up (12 Nov 2026): Yahoo booked the 2 Nov bond dividends 9 days
+    # late, after the 21:00 UTC price run, so BIL/BND/IEF/TLT sat on the old basis
+    # all night (BIL RSI 47.55 vs 98.78). The day's first compute re-runs the price
+    # update so update_daily's 0.2% reload catches it before the open (~27 s).
+    if _morning_slot(datetime.now(timezone.utc)):
+        print(f"[lambda_handler] morning catch-up: {handle_scheduled_update_prices()}")
     response = handle_evaluate(force=True)
     status = "ok" if response["statusCode"] == 200 else "error"
     print(f"[lambda_handler] Scheduled compute finished — status={status}")

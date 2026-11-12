@@ -313,6 +313,10 @@ compromised.** Owner must:
     → Yahoo split lookup, rescales only if the raw jump matches the ratio);
     nuts-radar `job/selfcheck.js` (fleet-health, 5 AM) recomputes every RSI(10) from
     Yahoo and fails >2 pts. Test: `python backend/test_split_guard.py` (live Yahoo).
+    Yahoo can book a dividend days late (2 Nov bond divs showed up ~11 Nov, after the 21:00 UTC
+    run), so the 13:05 UTC `compute` re-runs `update_prices` first (`_morning_slot`; test
+    `backend/test_morning_catchup.py`). Keep it. After a manual `update_prices`, also invoke
+    `compute`, or `/evaluate` serves the old cache for up to 60 min.
 
 ---
 
