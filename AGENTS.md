@@ -227,8 +227,10 @@ caught). **But the old keys are still in git history of this public repo, so the
 compromised.** Owner must:
 1. **Rotate both keys** at Finnhub and Polygon (the old ones are burned).
 2. **Set `FINNHUB_KEY` and `POLYGON_KEY` as environment variables on the `nuts-visualizer`
-   Lambda** (and locally for dev) with the rotated values — until you do, live price fetches
-   fail and signals fall back to the last S3 close.
+   Lambda** (and locally for dev) with the rotated values. Optional since 19 Nov 2026: with
+   no key the live price comes from **Yahoo** (keyless, 3rd layer). Before that the keys were
+   never set, so Jun → 19 Nov every intraday run silently used the last S3 close and
+   disagreed with Composer on any day a line was crossed intraday.
 3. (Optional) Purge the old literals from git history (`git filter-repo`) — rotation already
    neutralizes them, so this is hygiene, not strictly required.
 
@@ -245,7 +247,8 @@ compromised.** Owner must:
    (`leaf_uvxy_bull`, which no longer exists — real ids are `leaf_uvxy_b1`/`leaf_uvxy_b2`).
    **`demo_output.py` is illustrative and out of date; do not treat it as the contract.**
 3. **yfinance is NOT thread-safe — never call it inside `download_all_tickers`.** Live
-   intraday prices are fetched via plain `urllib` REST: **Finnhub → Polygon** fallback
+   intraday prices are fetched via plain `urllib` REST: **Finnhub → Polygon → Yahoo** fallback
+   (Yahoo needs no key and only counts a price traded today, so a holiday adds no bar)
    (`_fetch_live_price`). `download_ticker` runs across a 10-worker ThreadPool, so any
    shared/lazy library there will corrupt results. yfinance is only used single-threaded
    in `bootstrap_historical.py` and `data_manager.update_daily`.
@@ -253,7 +256,8 @@ compromised.** Owner must:
    `download_ticker` overwrites today's S3 close (or appends a new row) with the live quote.
    The window runs to **8 PM ET** on purpose: Finnhub's `c` field returns the *official*
    close after 4 PM, so EOD prices are correct before the 21:00 UTC `update_prices` cron
-   writes them. Don't shrink this window.
+   writes them. Don't shrink this window. When a live row is appended, `data_quality`
+   `last_date` is today (nuts-radar's cross-check cuts Yahoo at that date).
 5. **Two EventBridge schedules (verified in `setup_infra.sh`):**
    - `nuts-compute`: `cron(5,35 13-20 ? * MON-FRI *)` — :05 and :35 past the hour,
      13:00–20:00 UTC (≈09:00–16:00 ET), Mon–Fri → `{"action":"compute"}` → forces a fresh

@@ -59,7 +59,7 @@ def _should_inject_live_price() -> bool:
 
 
 def _fetch_live_price(ticker: str) -> Optional[float]:
-    """Fetch live price with 2-layer redundancy: Finnhub -> Polygon.
+    """Fetch live price with 3-layer redundancy: Finnhub -> Polygon -> Yahoo.
 
     yfinance is intentionally skipped here — it is not thread-safe and
     produces corrupt/shared results when called concurrently from the
@@ -67,6 +67,8 @@ def _fetch_live_price(ticker: str) -> Optional[float]:
     """
     # 1. Finnhub (thread-safe REST call)
     try:
+        if not FINNHUB_KEY:
+            raise ValueError("no FINNHUB_KEY set")
         url = f"https://finnhub.io/api/v1/quote?symbol={ticker}&token={FINNHUB_KEY}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -78,6 +80,8 @@ def _fetch_live_price(ticker: str) -> Optional[float]:
 
     # 2. Polygon fallback
     try:
+        if not POLYGON_KEY:
+            raise ValueError("no POLYGON_KEY set")
         url = f"https://api.polygon.io/v2/last/trade/{ticker}?apiKey={POLYGON_KEY}"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as response:
@@ -87,6 +91,21 @@ def _fetch_live_price(ticker: str) -> Optional[float]:
                 return float(data["results"]["p"])
     except Exception as e:
         print(f"[data_fetcher] Polygon failed for {ticker}: {e}")
+
+    # 3. Yahoo (no key). The Lambda ran with no Finnhub/Polygon key from Jun to 19 Nov
+    #    2026, so every intraday run silently used yesterday's close. Only a price
+    #    traded today counts: on a market holiday Yahoo still returns the last close.
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1d&interval=1d"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            meta = json.loads(response.read().decode("utf-8"))["chart"]["result"][0]["meta"]
+        traded = datetime.fromtimestamp(meta["regularMarketTime"], _ET).date()
+        if traded == datetime.now(_ET).date() and meta["regularMarketPrice"] > 0:
+            return float(meta["regularMarketPrice"])
+        print(f"[data_fetcher] Yahoo has no trade today for {ticker} (last {traded})")
+    except Exception as e:
+        print(f"[data_fetcher] Yahoo failed for {ticker}: {e}")
 
     return None
 
@@ -149,6 +168,7 @@ def download_ticker(ticker: str) -> tuple:
 
     prices = np.array(series.values, dtype=float)
     prices = prices[~np.isnan(prices)]
+    last_date = series.index[-1]
 
     # During market hours, always inject the live intraday price.
     if _should_inject_live_price():
@@ -162,6 +182,7 @@ def download_ticker(ticker: str) -> tuple:
             else:
                 # Last S3 row is from a previous day — append today's live price.
                 prices = np.append(prices, live)
+                last_date = today_str
                 print(f"[data_fetcher] {ticker}: appended live intraday price {live:.4f}")
 
     prices = _undo_unadjusted_splits(ticker, list(series.dropna().index), prices)
@@ -172,7 +193,6 @@ def download_ticker(ticker: str) -> tuple:
             f"(minimum {MIN_ROWS} required)"
         )
 
-    last_date  = series.index[-1]
     last_close = round(float(prices[-1]), 4)
 
     meta = {
