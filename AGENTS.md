@@ -262,6 +262,11 @@ compromised.** Owner must:
    - `nuts-compute`: `cron(5,35 13-20 ? * MON-FRI *)` — :05 and :35 past the hour,
      13:00–20:00 UTC (≈09:00–16:00 ET), Mon–Fri → `{"action":"compute"}` → forces a fresh
      eval and rewrites the S3 cache.
+   - **Mac mini launchd `com.jalal.nuts-compute-344`** (19 Nov 2026): weekdays 15:44 ET it
+     invokes this Lambda with `{"action":"compute"}`, so the last reading lands just before
+     Composer trades (~15:46). It lives on the mini, not EventBridge: the `claude-ops` AWS
+     user has no `events:*` rights. Mini off = no 15:44 run (the 15:35 one still stands).
+     Log: `~/Library/Logs/nuts-compute-344.log`.
    - `nuts-update-prices`: `cron(0 21 ? * MON-FRI *)` — 21:00 UTC (17:00 ET) Mon–Fri →
      `{"action":"update_prices"}` → appends today's close to every ticker's S3 CSV.
    EventBridge events are plain dicts with an `"action"` key and **no** `requestContext` —
